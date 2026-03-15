@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional
+from typing import Optional, List
 from app.db.models import UserRole
 
 # Kayıt sırasında istenecek veriler
@@ -30,3 +30,17 @@ class PointCreate(BaseModel):
     lat: float
     lng: float
     name: Optional[str] = "Yeni İşaret"
+
+class LatLng(BaseModel):
+    lat: float
+    lng: float
+
+class NodeData(BaseModel):
+    latlng: LatLng
+    info: str
+
+class AssignmentCreate(BaseModel):
+    title: str
+    start: NodeData
+    end: NodeData
+    path: List[LatLng]

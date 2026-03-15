@@ -29,77 +29,85 @@ const redMarker = L.icon({
     shadowSize: [41, 41]
 });
 
-let recordingStep = 1; // 1: P1, 2: P2, 3: Path
-let macroData = {
-    start: { latlng: null, info: "" },
-    end: { latlng: null, info: "" },
-    path: []
-};
+let recordingState = "SELECT_START"; // SELECT_START, INFO_START, SELECT_END, INFO_END, DRAW_PATH
+let macroData = { start: {}, end: {}, path: [] };
 
 let macroLayer = L.layerGroup().addTo(map);
 let tempLine = L.polyline([], {color: '#f59e0b', weight: 5}).addTo(map);
 
 map.on('click', function(e) {
-    if (recordingStep === 1) {
-        // BAŞLANGIÇ NOKTASI
+    if (recordingState === "SELECT_START") {
         macroData.start.latlng = e.latlng;
-        L.marker(e.latlng, {icon: greenMarker}).addTo(macroLayer).bindPopup("Başlangıç Noktası").openPopup();
+        L.marker(e.latlng, {icon: greenMarker}).addTo(macroLayer);
         
-        // Inputu göster
-        document.getElementById('start-desc').style.display = "block";
-        document.getElementById('msg').innerText = "Başlangıç için açıklama gir ve 2. adıma hazırlan.";
-        document.getElementById('step-1-area').style.opacity = "1";
-        
-        // Bir sonraki tıklama için 2. adıma geç (Açıklama girildikten sonra)
-        recordingStep = 1.5; // Açıklama bekleme modu
+        document.getElementById('input-1').style.display = "block";
+        document.getElementById('msg').innerText = "Başlangıç için açıklama girin ve onaylayın.";
+        recordingState = "INFO_START";
     } 
-    else if (recordingStep === 2) {
-        // BİTİŞ NOKTASI
+    else if (recordingState === "SELECT_END") {
         macroData.end.latlng = e.latlng;
-        L.marker(e.latlng, {icon: redMarker}).addTo(macroLayer).bindPopup("Bitiş Noktası").openPopup();
+        L.marker(e.latlng, {icon: redMarker}).addTo(macroLayer);
         
-        document.getElementById('end-desc').style.display = "block";
-        document.getElementById('msg').innerText = "Bitiş için açıklama gir ve yolu çizmeye başla.";
-        document.getElementById('step-2-area').style.opacity = "1";
-        recordingStep = 2.5; 
+        document.getElementById('input-2').style.display = "block";
+        document.getElementById('msg').innerText = "Bitiş için açıklama girin ve onaylayın.";
+        recordingState = "INFO_END";
     } 
-    else if (recordingStep === 3) {
-        // YOL ÇİZİMİ
+    else if (recordingState === "DRAW_PATH") {
         macroData.path.push(e.latlng);
         tempLine.addLatLng(e.latlng);
         L.circleMarker(e.latlng, {radius: 3, color: '#f59e0b'}).addTo(macroLayer);
+        document.getElementById('publish-btn').style.display = "block";
+    }
+});
+
+function confirmStep(step) {
+    if (step === 1) {
+        macroData.start.info = document.getElementById('start-info').value;
+        if (!macroData.start.info) { alert("Lütfen bir açıklama girin!"); return; }
         
-        document.getElementById('save-macro-btn').style.display = "block";
+        document.getElementById('area-1').style.opacity = "0.5";
+        document.getElementById('area-2').classList.add('active-step');
+        recordingState = "SELECT_END";
+        document.getElementById('msg').innerText = "Bitiş noktasını haritada işaretleyin.";
+    } 
+    else if (step === 2) {
+        macroData.end.info = document.getElementById('end-info').value;
+        if (!macroData.end.info) { alert("Lütfen bir açıklama girin!"); return; }
+        
+        document.getElementById('area-2').style.opacity = "0.5";
+        document.getElementById('area-3').classList.add('active-step');
+        document.getElementById('path-msg').style.display = "block";
+        recordingState = "DRAW_PATH";
+        document.getElementById('msg').innerText = "Şimdi haritaya tıklayarak yolu çizin.";
     }
-});
+}
 
-// Input alanları değiştikçe veriyi güncelle (Enter'a basınca diğer adıma geç)
-document.getElementById('start-desc').addEventListener('keypress', function (e) {
+// "Enter" tuşu desteği
+document.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
-        macroData.start.info = this.value;
-        recordingStep = 2; // Artık 2. noktaya tıklayabilir
-        document.getElementById('msg').innerText = "Harika! Şimdi bitiş noktasını seç.";
-        this.disabled = true;
-    }
-});
-
-document.getElementById('end-desc').addEventListener('keypress', function (e) {
-    if (e.key === 'Enter') {
-        macroData.end.info = this.value;
-        recordingStep = 3; // Artık yol çizebilir
-        document.getElementById('step-3-area').style.opacity = "1";
-        document.getElementById('msg').innerText = "Noktalar tamam. Şimdi aradaki tarihi yolu çiz.";
-        this.disabled = true;
+        if (recordingState === "INFO_START") confirmStep(1);
+        else if (recordingState === "INFO_END") confirmStep(2);
     }
 });
 
 function finishMacro() {
-    // Bu aşamada macroData nesnesi veritabanına kaydedilmeye hazır!
-    console.log("ÖĞRETMEN MAKROSU KAYDEDİLDİ:", macroData);
-    alert("Görev başarıyla kaydedildi! Artık öğrenciler sizin tıkladığınız bu rotayı takip edecek.");
-    
-    // Öğrenci moduna geçiş simülasyonu
-    document.getElementById('msg').innerHTML = "<span style='color:green'>Makro Yayında! Öğrenciler artık bu görevi görebilir.</span>";
+    const finalData = {
+        title: document.getElementById('level-title').innerText,
+        start: macroData.start,
+        end: macroData.end,
+        path: macroData.path
+    };
+
+    fetch('/api/v1/save_assignment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(finalData)
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert("Ödev başarıyla sunucuya kaydedildi! ID: " + data.assignment_id);
+        document.getElementById('msg').innerHTML = `<span style='color:green'>Makro (ID: ${data.assignment_id}) yayında!</span>`;
+    });
 }
 
 // 1. ARAMA FONKSİYONU

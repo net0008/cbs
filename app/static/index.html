@@ -42,6 +42,10 @@
         .leaflet-container {
             cursor: crosshair !important;
         }
+    .step-container { margin-bottom: 20px; padding: 10px; border-radius: 8px; transition: 0.3s; }
+    .active-step { background: #eff6ff; border-left: 4px solid #2563eb; opacity: 1 !important; }
+    input { width: 70%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
+    button { padding: 8px 12px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -52,28 +56,35 @@
     </div>
     
     <div class="task-box">
-        <span class="badge">Öğretmen Modu: Hikayeli Görev Kaydı</span>
-        <h2 id="level-title">Makro Oluşturuluyor</h2>
+        <span class="badge">Makro Kayıt Modu</span>
+        <h2 id="level-title">Öğretmen Görev Oluşturucu</h2>
         
         <div id="macro-steps" class="info-card">
-            <div id="step-1-area">
-                <p id="step-1" style="color: green; font-weight: bold;">1. ADIM: Başlangıç Noktasını Seç</p>
-                <input type="text" id="start-desc" placeholder="Burası neresi? (Örn: Selçuklu Minaresi)" style="display:none; width:90%; margin-bottom:10px; padding:5px;">
+            <div id="area-1" class="step-container active-step">
+                <p><strong>1. ADIM:</strong> Başlangıç Noktasını Haritada Seç</p>
+                <div id="input-1" style="display:none;">
+                    <input type="text" id="start-info" placeholder="Burası neresi? (Örn: Tarihi Minare)">
+                    <button onclick="confirmStep(1)">Onayla</button>
+                </div>
             </div>
 
-            <div id="step-2-area" style="opacity: 0.5;">
-                <p id="step-2">2. ADIM: Bitiş Noktasını Seç</p>
-                <input type="text" id="end-desc" placeholder="Varış noktası neresi? (Örn: Ulu Cami)" style="display:none; width:90%; margin-bottom:10px; padding:5px;">
+            <div id="area-2" class="step-container" style="opacity: 0.3;">
+                <p><strong>2. ADIM:</strong> Bitiş Noktasını Haritada Seç</p>
+                <div id="input-2" style="display:none;">
+                    <input type="text" id="end-info" placeholder="Varış noktası neresi? (Örn: Müze Bahçesi)">
+                    <button onclick="confirmStep(2)">Onayla</button>
+                </div>
             </div>
 
-            <div id="step-3-area" style="opacity: 0.5;">
-                <p id="step-3">3. ADIM: Aradaki Yolu Çiz</p>
+            <div id="area-3" class="step-container" style="opacity: 0.3;">
+                <p><strong>3. ADIM:</strong> Aradaki Tarihi Yolu Çiz</p>
+                <p id="path-msg" style="font-size: 0.8rem; display:none;">Yolu çizmek için haritaya tıklamaya devam et.</p>
             </div>
         </div>
 
         <div id="feedback">
-            <p id="msg">Haritaya tıklayarak başlangıcı belirle.</p>
-            <button id="save-macro-btn" style="display:none; width:100%; background: #16a34a; color:white; border:none; padding:10px; border-radius:5px;" onclick="finishMacro()">✅ Kaydı Tamamla ve Yayınla</button>
+            <p id="msg">Lütfen başlangıç noktasını işaretleyin.</p>
+            <button id="publish-btn" style="display:none; width:100%; background:#16a34a;" onclick="finishMacro()">✅ Kaydı Tamamla ve Yayınla</button>
         </div>
     </div>
 </div>

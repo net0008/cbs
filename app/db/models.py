@@ -113,3 +113,17 @@ class UserPolygon(Base):
     # Geometry(POLYGON) olarak tanımlıyoruz
     geometry = Column(Geometry(geometry_type='POLYGON', srid=4326))
     user_id = Column(Integer, ForeignKey("users.id"))
+
+class Assignment(Base):
+    __tablename__ = "assignments"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    start_info = Column(Text)
+    end_info = Column(Text)
+    geom_start = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
+    geom_end = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
+    geom_path = Column(Geometry(geometry_type='LINESTRING', srid=4326))
+    
+    teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    teacher = relationship("User")
