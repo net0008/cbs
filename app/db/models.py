@@ -103,3 +103,13 @@ class UserPoint(Base):
     # SRID 4326: Standart WGS84 koordinat sistemi (GPS koordinatları)
     location = Column(Geometry(geometry_type='POINT', srid=4326))
     user_id = Column(Integer, ForeignKey("users.id"))
+
+class UserPolygon(Base):
+    __tablename__ = "user_polygons"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=True)
+    category = Column(String, default="Alan")
+    # Geometry(POLYGON) olarak tanımlıyoruz
+    geometry = Column(Geometry(geometry_type='POLYGON', srid=4326))
+    user_id = Column(Integer, ForeignKey("users.id"))

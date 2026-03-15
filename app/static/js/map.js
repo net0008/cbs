@@ -8,6 +8,7 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 
 // Dinamik olarak eklenecek noktalar için bir katman grubu oluşturalım
 const pointsLayer = L.layerGroup().addTo(map);
+const polygonsLayer = L.layerGroup().addTo(map);
 
 // Bir marker (işaretçi) ekle
 const marker = L.marker([39.12, 27.18]).addTo(map);
@@ -89,6 +90,25 @@ function loadSavedPoints() {
         .catch(err => console.error("Noktalar yüklenirken hata oluştu:", err));
 }
 
+// Veritabanındaki tüm poligonları yükle ve haritaya çiz
+function loadSavedPolygons() {
+    fetch('/api/v1/get-polygons')
+        .then(res => res.json())
+        .then(polygons => {
+            polygonsLayer.clearLayers(); // Önceki poligonları temizle
+            polygons.forEach(p => {
+                // Leaflet, GeoJSON formatını doğrudan işleyebilir
+                L.geoJSON(p.geometry, {
+                    style: { color: "orange", weight: 2, fillOpacity: 0.3 }
+                })
+                .addTo(polygonsLayer)
+                .bindPopup(p.name);
+            });
+            console.log(`${polygons.length} alan veritabanından yüklendi.`);
+        })
+        .catch(err => console.error("Alanlar yüklenirken hata oluştu:", err));
+}
+
 // Nokta silme fonksiyonu
 function deletePoint(pointId) {
     if (!confirm(`ID: ${pointId} olan noktayı silmek istediğinizden emin misiniz?`)) {
@@ -108,6 +128,7 @@ function deletePoint(pointId) {
 
 // Harita hazır olduğunda noktaları getir
 loadSavedPoints();
+loadSavedPolygons();
 
 async function uploadFile() {
     const fileInput = document.getElementById('geoJsonInput');
@@ -125,6 +146,7 @@ async function uploadFile() {
         const data = await response.json();
         alert(data.message);
         loadSavedPoints(); // Haritayı anında güncelle
+        loadSavedPolygons(); // Alanları da güncelle
     } catch (err) {
         alert("Bağlantı hatası oluştu!");
     }

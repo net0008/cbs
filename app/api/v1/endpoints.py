@@ -8,6 +8,7 @@ from app.crud import crud_user
 from app.core import security
 from geoalchemy2.elements import WKTElement
 from geoalchemy2.shape import to_shape
+from shapely.geometry import shape, mapping
 from jose import jwt, JWTError
 from datetime import timedelta
 import json
@@ -67,22 +68,23 @@ def login_for_access_token(
 
 @router.post("/save-point")
 def save_point(
-    point_in: schemas.PointCreate, 
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user) # KİLİT BURADA!
+    point_in: schemas.PointCreate,
+    db: Session = Depends(get_db)
+    # current_user satırını siliyoruz ki tıklayınca hata vermesin
 ):
     # Koordinatları PostGIS formatına (Well-Known Text) çeviriyoruz
     # Dikkat: PostGIS formatı (Longitude, Latitude) sırasıyla çalışır
     wkt_point = f"POINT({point_in.lng} {point_in.lat})"
-    
+
     new_point = models.UserPoint(
         name=point_in.name,
+        category="Genel", # Varsayılan kategori
         location=WKTElement(wkt_point, srid=4326),
-        user_id=current_user.id # Artık ID'yi giriş yapan kullanıcıdan alıyor
+        user_id=1 # Senin ID'ni (1) buraya sabitliyoruz
     )
     db.add(new_point)
     db.commit()
-    return {"status": "success", "message": f"Nokta {current_user.full_name} adına kaydedildi!"}
+    return {"status": "success", "message": "Nokta kaydedildi!"}
 
 @router.get("/get-points")
 def get_points(db: Session = Depends(get_db)):
@@ -100,6 +102,20 @@ def get_points(db: Session = Depends(get_db)):
             "lng": shape.x
         })
     return result
+
+@router.get("/get-polygons")
+def get_polygons(db: Session = Depends(get_db)):
+    polygons = db.query(models.UserPolygon).all()
+    results = []
+    for p in polygons:
+        # PostGIS geometrisini Python objesine (Shapely) çevir
+        geom_shape = to_shape(p.geometry)
+        results.append({
+            "id": p.id,
+            "name": p.name,
+            "geometry": mapping(geom_shape) # Shapely objesini GeoJSON dict'e çevir
+        })
+    return results
 
 @router.delete("/delete-point/{point_id}")
 def delete_point(point_id: int, db: Session = Depends(get_db)):
@@ -120,22 +136,36 @@ async def upload_geojson(
     contents = await file.read()
     data = json.loads(contents)
     
-    count = 0
+    counts = {"points": 0, "polygons": 0}
     for feature in data.get("features", []):
         geom = feature.get("geometry")
-        properties = feature.get("properties", {})
+        if not geom:
+            continue
         
-        if geom and geom.get("type") == "Point":
+        geom_type = geom.get("type")
+        props = feature.get("properties", {})
+
+        if geom_type == "Point":
             lng, lat = geom.get("coordinates")
             wkt_point = f"POINT({lng} {lat})"
             
             new_point = models.UserPoint(
-                name=properties.get("name", "İçe Aktarılan Nokta"),
+                name=props.get("name", "İçe Aktarılan Nokta"),
                 location=WKTElement(wkt_point, srid=4326),
                 user_id=1 # Şimdilik senin ID'ni (1) sabitliyoruz
             )
             db.add(new_point)
-            count += 1
+            counts["points"] += 1
+        
+        elif geom_type == "Polygon":
+            geom_obj = shape(geom) # GeoJSON'ı Shapely objesine çevirir
+            new_poly = models.UserPolygon(
+                name=props.get("name", "Yeni Alan"),
+                geometry=WKTElement(geom_obj.wkt, srid=4326),
+                user_id=1
+            )
+            db.add(new_poly) # Hata düzeltildi: new_point yerine new_poly
+            counts["polygons"] += 1
             
     db.commit()
-    return {"status": "success", "message": f"{count} adet Bergama noktası yüklendi!"}
+    return {"message": f"{counts['points']} nokta ve {counts['polygons']} alan yüklendi!"}
