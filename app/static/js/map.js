@@ -10,6 +10,25 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 // CSS'e eklediğimiz cursor: crosshair özelliğini tüm harita etkileşimlerinde aktif tutar.
 map.getContainer().style.cursor = 'crosshair';
 
+// İkon renklerini CSS filtreleri ile ayarlıyalım
+const greenMarker = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
+const redMarker = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+});
+
 let recordingStep = 1; // 1: P1, 2: P2, 3: Path
 let macroData = {
     startPoint: null,
@@ -22,23 +41,23 @@ let tempLine = L.polyline([], {color: '#f59e0b', weight: 5}).addTo(map);
 
 map.on('click', function(e) {
     if (recordingStep === 1) {
-        // 1. NOKTAYI SEÇ
+        // BAŞLANGIÇ: Yeşil
         macroData.startPoint = e.latlng;
-        L.marker(e.latlng).addTo(macroLayer).bindPopup("Başlangıç Noktası").openPopup();
+        L.marker(e.latlng, {icon: greenMarker}).addTo(macroLayer).bindPopup("<b>Başlangıç</b>").openPopup();
         
         document.getElementById('step-1').style.color = "gray";
         document.getElementById('step-2').style.color = "blue";
-        document.getElementById('msg').innerText = "Başlangıç kaydedildi. Şimdi bitişi seç.";
+        document.getElementById('msg').innerText = "Başlangıç noktası seçildi. Şimdi hedefi işaretle.";
         recordingStep = 2;
     } 
     else if (recordingStep === 2) {
-        // 2. NOKTAYI SEÇ
+        // BİTİŞ: Kırmızı (Artık kafa karıştırmaz)
         macroData.endPoint = e.latlng;
-        L.marker(e.latlng, {icon: L.divIcon({className: 'end-node', html: '🏁'})}).addTo(macroLayer);
+        L.marker(e.latlng, {icon: redMarker}).addTo(macroLayer).bindPopup("<b>Hedef (Bitiş)</b>").openPopup();
         
         document.getElementById('step-2').style.color = "gray";
         document.getElementById('step-3').style.color = "blue";
-        document.getElementById('msg').innerText = "Bitiş kaydedildi. Şimdi yolu çizmeye başla.";
+        document.getElementById('msg').innerText = "Hedef seçildi. Şimdi aradaki tarihi yolu çiz.";
         recordingStep = 3;
     } 
     else if (recordingStep === 3) {
