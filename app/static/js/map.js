@@ -1,28 +1,142 @@
 // Haritayı Bergama'ya odakla
-const map = L.map('map').setView([39.1325, 27.1841], 15);
+let map = L.map('map').setView([39.1325, 27.1841], 15);
 
 // OpenStreetMap katmanını ekle
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap'
 }).addTo(map);
 
-// Hedef: Akropol Koordinatları
-const target = { lat: 39.1325, lng: 27.1841 };
+let currentLevel = 1;
+let markers = L.layerGroup().addTo(map);
+let routePoints = [];
+let tempRoute = L.polyline([], {color: '#f59e0b', weight: 5, dashArray: '10, 10'}).addTo(map);
+let subTask = 0; // 0: Minareyi bul, 1: Camiyi bul, 2: Rota çiz
+
+// SEVİYE 1 AYARLARI (Nokta)
+const targetAkropol = { lat: 39.1325, lng: 27.1841 };
+
+// SEVİYE 2 HEDEFLERİ
+const selcukluMinare = [39.1205, 27.1775]; // Selçuklu Minaresi
 
 map.on('click', function(e) {
-    const clickedLat = e.latlng.lat;
-    const clickedLng = e.latlng.lng;
-
-    // Koordinat farkını hesapla (yakınlık toleransı)
-    const diff = Math.abs(clickedLat - target.lat) + Math.abs(clickedLng - target.lng);
-
-    if (diff < 0.002) { // Yaklaşık 200 metrelik bir tolerans
-        L.marker([clickedLat, clickedLng]).addTo(map)
-            .bindPopup("<b>Tebrikler!</b><br>Akropolü doğru işaretledin.").openPopup();
-        
-        document.getElementById('msg').innerHTML = "<span style='color:green'>Mükemmel! İlk mekânsal verini (Nokta) başarıyla oluşturdun.</span>";
-        document.getElementById('next-btn').style.display = "block";
-    } else {
-        alert("Biraz daha yakından bak! Akropol tepenin en üst kısmında yer alır.");
+    if (currentLevel === 1) {
+        checkLevel1(e.latlng);
+    } else if (currentLevel === 2) {
+        handleLevel2Click(e.latlng);
     }
 });
+
+// --- SEVİYE 1 MANTIĞI ---
+function checkLevel1(clicked) {
+    const diff = Math.abs(clicked.lat - targetAkropol.lat) + Math.abs(clicked.lng - targetAkropol.lng);
+    if (diff < 0.002) {
+        markers.clearLayers();
+        L.marker(clicked).addTo(markers).bindPopup("Tebrikler! Akropol işaretlendi.").openPopup();
+        document.getElementById('msg').innerHTML = "<span style='color:green'>Mükemmel! Akropol'ü buldun.</span>";
+        document.getElementById('next-btn').style.display = "block";
+    } else {
+        alert("Hedef Akropol tepesi, biraz daha kuzeye bak!");
+    }
+}
+
+function startLevel1() {
+    currentLevel = 1;
+    markers.clearLayers();
+    document.getElementById('next-btn').style.display = "none";
+    
+    // 1. Badge ve Başlık
+    document.querySelector('.badge').innerText = "Seviye 1 / 10";
+    document.getElementById('level-title').innerText = "Noktayı Koy!";
+    
+    // 2. Akropol Bilgi Notu (Yeni eklenen kısım)
+    document.getElementById('info-card-content').innerHTML = `
+        <strong>📚 Bilgi Notu:</strong><br>
+        Antik Yunancada 'Yukarı Şehir' anlamına gelen <b>Akropol</b>, Bergama'nın en yüksek noktasıdır. Burada dünyanın en dik antik tiyatrosu bulunur.
+    `;
+
+    // 3. Görev Metni
+    document.getElementById('task-instruction').innerHTML = `
+        <strong>Görevin:</strong> Haritayı kullanarak tarihin kalbi olan <b>Bergama Akropolü</b>'nü bul ve üzerine bir kez tıkla.
+    `;
+    
+    // Haritayı Akropol'e odakla
+    map.flyTo([39.1325, 27.1841], 15);
+    
+    document.getElementById('msg').innerText = "Hadi, Akropol'ü işaretle!";
+}
+
+// --- SEVİYE 2'YE GEÇİŞ ---
+function startLevel2() {
+    currentLevel = 2;
+    subTask = 0;
+    markers.clearLayers();
+    routePoints = [];
+    if(tempRoute) tempRoute.setLatLngs([]);
+    
+    document.getElementById('next-btn').style.display = "none";
+    
+    document.getElementById('level-title').innerText = "Adım Adım Rota Oluştur";
+    document.getElementById('info-card-content').innerHTML = `
+        <strong>📚 Bilgi Notu:</strong><br>
+        Önce önemli noktaları (nokta verisi) belirleyip, sonra aralarındaki bağlantıyı (çizgi verisi) kuracağız.
+    `;
+    updateInstruction("<strong>1. Adım:</strong> Bergama'nın en eski Türk eseri olan <b>Selçuklu Minaresi</b>'ni haritada bul ve işaretle.");
+    
+    map.flyTo([39.1213, 27.1796], 17);
+}
+
+function handleLevel2Click(latlng) {
+    if (subTask === 0) { // Selçuklu Minaresi'ni bulma
+        if (isNear(latlng, [39.1205, 27.1775])) {
+            L.marker([39.1205, 27.1775]).addTo(markers).bindPopup("Selçuklu Minaresi").openPopup();
+            subTask = 1;
+            updateInstruction("<strong>2. Adım:</strong> Şimdi <b>Ulu Cami</b>'yi (Yıldırım Bayezid) bul ve işaretle.");
+            document.getElementById('msg').innerText = "Harika! İlk noktayı buldun.";
+        } else {
+            alert("Minare biraz daha batıda kalıyor, tekrar dene!");
+        }
+    } 
+    else if (subTask === 1) { // Ulu Cami'yi bulma
+        if (isNear(latlng, [39.1221, 27.1818])) {
+            L.marker([39.1221, 27.1818]).addTo(markers).bindPopup("Ulu Cami").openPopup();
+            subTask = 2;
+            updateInstruction("<strong>3. Adım:</strong> Şimdi bu iki nokta arasını <b>Çizgi</b> çekerek birleştir (Rota oluştur).");
+            document.getElementById('msg').innerText = "Noktalar tamam! Şimdi yolu çizmeye başla.";
+            // Kontrol butonu burada belirsin
+            document.getElementById('next-btn').innerText = "Rotayı Kontrol Et";
+            document.getElementById('next-btn').style.display = "block";
+            document.getElementById('next-btn').onclick = validateRoute;
+        } else {
+            alert("Ulu Cami biraz daha kuzeydoğuda, minarenin ilerisinde!");
+        }
+    }
+    else if (subTask === 2) { // Rota çizme
+        routePoints.push(latlng);
+        tempRoute.addLatLng(latlng);
+        L.circleMarker(latlng, {radius: 3, color: '#f59e0b'}).addTo(markers);
+    }
+}
+
+// Yardımcı fonksiyonlar
+function isNear(latlng, target) {
+    const dist = Math.abs(latlng.lat - target[0]) + Math.abs(latlng.lng - target[1]);
+    return dist < 0.0008; // Hassasiyeti buradan ayarlayabilirsin
+}
+
+function updateInstruction(text) {
+    document.getElementById('task-instruction').innerHTML = text;
+}
+
+function validateRoute() {
+    if (routePoints.length < 2) {
+        alert("Lütfen yolu çizmek için en az birkaç noktaya tıkla!");
+        return;
+    }
+    // Başarı mesajı
+    document.getElementById('msg').innerHTML = "<span style='color:green'><b>Tebrikler!</b> İki tarihi noktayı ve aralarındaki rotayı CBS ile modelledin.</span>";
+    document.getElementById('next-btn').innerText = "Seviye 3'e Geç →";
+    document.getElementById('next-btn').onclick = startLevel3; // Seviye 3 fonksiyonuna bağla
+}
+
+// Sayfa yüklendiğinde Seviye 1 ile başla
+window.onload = startLevel1;
