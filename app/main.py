@@ -5,6 +5,13 @@ from fastapi.responses import FileResponse
 import os
 from app.api.v1.endpoints import router as api_router
 
+# KRİTİK EKLEME: Veritabanı motorunu ve Base sınıfını içe aktarın
+from app.db.database import engine
+from app.db import models
+
+# Bu satır, veritabanındaki tabloları (eğer yoksa) otomatik oluşturur
+models.Base.metadata.create_all(bind=engine)
+
 # FastAPI Uygulamasını Başlat
 app = FastAPI(
     title="Coğrafya CBS Portalı",
