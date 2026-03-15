@@ -18,13 +18,13 @@ def get_current_user(db: Session = Depends(get_db), token: str = Depends(reusabl
         raise credentials_exception
     try:
         payload = jwt.decode(token, security.SECRET_KEY, algorithms=[security.ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
+        email: str = payload.get("sub")
+        if email is None:
             raise credentials_exception
     except JWTError:
         raise credentials_exception
     
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    user = db.query(User).filter(User.email == email).first()
     if not user:
         raise credentials_exception
     return user
