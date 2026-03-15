@@ -60,34 +60,35 @@
         <h2>Bergama CBS Akademi</h2>
         
         <div class="level-selector" style="margin-bottom: 20px;">
-            <label for="task-select" style="font-weight: 600;">Düzenlenecek Görev:</label>
+            <label for="task-select" style="font-weight: 600;">Müfredat Adımı:</label>
             <select id="task-select" onchange="loadTaskTemplate()" style="width: 100%; padding: 8px; margin-top: 5px; border-radius: 4px; border: 1px solid #ddd;">
-                <option value="1">Görev 1: Akropol Girişi</option>
-                <option value="2">Görev 2: Tarihi Köprüden Müze'ye</option>
-                <option value="10">Görev 10: Final - Bergama Panoraması</option>
+                <option value="1">1. Görev: Mekanı Tanıma (Nokta)</option>
+                <option value="2">2. Görev: Ulaşım ve Rota (Çizgi)</option>
+                <option value="3">3. Görev: Yerleşke Sınırı (Alan)</option>
             </select>
         </div>
 
         <div id="macro-steps" class="info-card">
-            <div id="step-1-ui" class="step-container active-step">
-                <p><strong>1. ADIM:</strong> Başlangıç Noktası Seç & Bilgi Gir</p>
+            <div id="step-1-ui" class="step-container">
+                <p><strong>1. ADIM:</strong> Konumu Seç ve Açıklama Yaz</p>
                 <div id="input-1" style="display:none">
-                    <input type="text" id="start-desc" placeholder="Örn: Bergama Müzesi Girişi">
+                    <input type="text" id="start-desc" placeholder="Açıklama girin...">
                     <button onclick="confirmStep(1)">Onayla</button>
                 </div>
             </div>
-            <div id="step-2-ui" class="step-container" style="opacity:0.4;">
-                <p><strong>2. ADIM:</strong> Bitiş Noktası Seç & Bilgi Gir</p>
+            <div id="step-2-ui" class="step-container" style="display:none">
+                <p><strong>2. ADIM:</strong> Bitiş Noktası Seç &amp; Bilgi Gir</p>
                 <div id="input-2" style="display:none">
                     <input type="text" id="end-desc" placeholder="Örn: Kızıl Avlu Doğu Kapısı">
                     <button onclick="confirmStep(2)">Onayla</button>
                 </div>
             </div>
-            <div id="step-3-ui" class="step-container" style="opacity:0.4;">
+            <div id="step-3-ui" class="step-container" style="display:none">
                 <p><strong>3. ADIM:</strong> İdeal Rotayı Çiz</p>
-                <button id="save-all-btn" style="display:none; background:#16a34a;" onclick="saveTaskToDatabase()">✅ Görevi Veritabanına Kaydet</button>
             </div>
         </div>
+        <p id="msg" style="text-align: center; font-style: italic; color: #64748b;">Lütfen bir görev seçerek kayda başlayın.</p>
+        <button id="save-all-btn" style="display:none; background:#16a34a; margin-top: 15px;" onclick="saveTaskToDatabase()">✅ Görevi Kaydet</button>
     </div>
 </div>
 

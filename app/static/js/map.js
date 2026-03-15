@@ -30,64 +30,52 @@ const redMarker = L.icon({
 });
 
 // --- GLOBAL STATE AND DATA ---
-// Arka planda mühürlenen yapı (Global Task Registry)
-let spatialAssignments = JSON.parse(localStorage.getItem('bergama_cbs_master')) || {};
 let currentTaskId = '1'; // Default to task 1 on load
-
-// Teacher Mode State
-let recordingState = "SELECT_POINT"; // Initial state for the default task (Task 1)
-let macroData = { point: null, start: {}, end: {}, path: [], polygon: [] }; // A unified data object
+let recordingState = "SELECT_START"; 
+let macroData = { start: {}, end: {}, path: [], polygon: [] };
 let macroLayer = L.layerGroup().addTo(map);
 let tempLine = L.polyline([], {color: '#f59e0b', weight: 5}).addTo(map);
-let tempPolygon = L.polygon([], {color: '#ff7800', weight: 3, fillOpacity: 0.2}).addTo(map);
 
 
 // --- EVENT HANDLERS ---
+// GÖREV TİPİNE GÖRE TIKLAMA YÖNETİMİ
 map.on('click', function(e) {
     // Dispatch click based on the current task type
     const taskType = getTaskType(currentTaskId);
 
-    switch (taskType) {
-        case 'POINT':
-            handlePointTaskClick(e);
-            break;
-        case 'LINE':
-            handleLineTaskClick(e);
-            break;
-        case 'POLYGON':
-            handlePolygonTaskClick(e);
-            break;
-        default:
-            console.warn(`No click handler for task type: ${taskType}`);
+    if (taskType === 'POINT') {
+        macroData.start.latlng = e.latlng;
+        macroLayer.clearLayers(); // Only one point allowed
+        L.marker(e.latlng, {icon: greenMarker}).addTo(macroLayer);
+        showInput(1);
+        recordingState = "INFO_START";
+    } 
+    else if (taskType === 'LINE') {
+        handleLineLogic(e);
+    } 
+    else if (taskType === 'POLYGON') {
+        macroData.polygon.push(e.latlng);
+        L.circleMarker(e.latlng, {radius: 4, color: '#ff7800'}).addTo(macroLayer);
+        // Poligon çizimini görselleştir
+        if(macroData.polygon.length > 2) {
+             if(window.currentPoly) map.removeLayer(window.currentPoly);
+             window.currentPoly = L.polygon(macroData.polygon, {color: '#ff7800'}).addTo(macroLayer);
+        }
+        document.getElementById('save-all-btn').style.display = "block";
     }
 });
 
-// --- TASK-SPECIFIC CLICK HANDLERS ---
-
-function handlePointTaskClick(e) {
-    if (recordingState === "SELECT_POINT") {
-        macroData.point = e.latlng;
-        macroLayer.clearLayers(); // Only one point allowed
-        L.marker(e.latlng, {icon: greenMarker}).addTo(macroLayer);
-        document.getElementById('input-1').style.display = "block";
-        document.getElementById('msg').innerText = "Nokta için açıklama girin ve onaylayın.";
-        recordingState = "INFO_POINT";
-    }
-}
-
-function handleLineTaskClick(e) {
+function handleLineLogic(e) {
     if (recordingState === "SELECT_START") {
         macroData.start.latlng = e.latlng;
         L.marker(e.latlng, {icon: greenMarker}).addTo(macroLayer);
-        document.getElementById('input-1').style.display = "block";
-        document.getElementById('msg').innerText = "Başlangıç için açıklama girin ve onaylayın.";
+        showInput(1);
         recordingState = "INFO_START";
     } 
     else if (recordingState === "SELECT_END") {
         macroData.end.latlng = e.latlng;
         L.marker(e.latlng, {icon: redMarker}).addTo(macroLayer);
-        document.getElementById('input-2').style.display = "block";
-        document.getElementById('msg').innerText = "Bitiş için açıklama girin ve onaylayın.";
+        showInput(2);
         recordingState = "INFO_END";
     }
     else if (recordingState === "DRAW_PATH") {
@@ -98,15 +86,6 @@ function handleLineTaskClick(e) {
     }
 }
 
-function handlePolygonTaskClick(e) {
-    if (recordingState === "DRAW_POLYGON") {
-        macroData.polygon.push(e.latlng);
-        tempPolygon.addLatLng(e.latlng);
-        document.getElementById('save-all-btn').style.display = "block";
-        document.getElementById('msg').innerText = "Alan çiziliyor... Bitince 'Kaydet'e bas.";
-    }
-}
-
 // --- UI AND STATE MANAGEMENT ---
 function confirmStep(step) {
     const taskType = getTaskType(currentTaskId);
@@ -114,7 +93,7 @@ function confirmStep(step) {
     if (taskType === 'POINT' && step === 1) {
         if (!document.getElementById('start-desc').value) { alert("Lütfen bir açıklama girin!"); return; }
         document.getElementById('save-all-btn').style.display = "block";
-        document.getElementById('msg').innerText = "Nokta kaydedilmeye hazır. 'Görevi Kaydet' butonuna tıklayın.";
+        document.getElementById('msg').innerText = "Nokta kaydedilmeye hazır.";
         recordingState = "DONE"; // A final state
     } else if (taskType === 'LINE') {
         if (step === 1) {
@@ -122,22 +101,16 @@ function confirmStep(step) {
             if (!macroData.start.info) { alert("Lütfen bir açıklama girin!"); return; }
             
             document.getElementById('step-1-ui').style.opacity = "0.4";
-            document.getElementById('step-1-ui').classList.remove('active-step');
             document.getElementById('step-2-ui').style.opacity = "1";
-            document.getElementById('step-2-ui').classList.add('active-step');
             recordingState = "SELECT_END";
-            document.getElementById('msg').innerText = "Bitiş noktasını haritada işaretleyin.";
         } 
         else if (step === 2) {
             macroData.end.info = document.getElementById('end-desc').value;
             if (!macroData.end.info) { alert("Lütfen bir açıklama girin!"); return; }
             
             document.getElementById('step-2-ui').style.opacity = "0.4";
-            document.getElementById('step-2-ui').classList.remove('active-step');
             document.getElementById('step-3-ui').style.opacity = "1";
-            document.getElementById('step-3-ui').classList.add('active-step');
             recordingState = "DRAW_PATH";
-            document.getElementById('msg').innerText = "Şimdi haritaya tıklayarak yolu çizin.";
         }
     }
 }
@@ -146,7 +119,7 @@ function confirmStep(step) {
 document.addEventListener('keypress', function (e) {
     if (e.key === 'Enter') {
         const activeElementId = document.activeElement.id;
-        if ((recordingState === "INFO_POINT" || recordingState === "INFO_START") && activeElementId === 'start-desc') {
+        if (recordingState === "INFO_START" && activeElementId === 'start-desc') {
             confirmStep(1);
         } else if (recordingState === "INFO_END" && activeElementId === 'end-desc') {
             confirmStep(2);
@@ -154,110 +127,88 @@ document.addEventListener('keypress', function (e) {
     }
 });
 
-function saveTaskToDatabase() {
-    const taskType = getTaskType(currentTaskId);
-    let taskData, taskLabel;
+// PDF SIRALAMASINA GÖRE GÖREV TİPLERİ
+function getTaskType(id) {
+    const n = parseInt(id);
+    if ([1, 4, 5].includes(n)) return 'POINT';   // Nokta Görevleri
+    if ([2, 6, 7].includes(n)) return 'LINE';    // Çizgi/Rota Görevleri
+    if ([3, 8, 9].includes(n)) return 'POLYGON'; // Alan Görevleri
+    return 'FINAL';
+}
 
-    switch (taskType) {
-        case 'POINT':
-            taskData = { point: macroData.point, description: document.getElementById('start-desc').value };
-            taskLabel = "Nokta Tanımlama";
-            break;
-        case 'LINE':
-            taskData = {
-                startNode: { latlng: macroData.start.latlng, description: macroData.start.info },
-                endNode: { latlng: macroData.end.latlng, description: macroData.end.info },
-                idealPath: macroData.path
-            };
-            taskLabel = "Güzergah Oluşturma";
-            break;
-        case 'POLYGON':
-            taskData = { vertices: macroData.polygon, description: document.getElementById('start-desc').value };
-            taskLabel = "Alan Hesaplama";
-            break;
-        default:
-            alert("Bilinmeyen görev tipi, kayıt yapılamadı.");
-            return;
+function loadTaskTemplate() {
+    currentTaskId = document.getElementById('task-select').value;
+    resetMacro();
+    const type = getTaskType(currentTaskId);
+
+    // Hide all steps first
+    document.getElementById('step-1-ui').style.display = 'none';
+    document.getElementById('step-2-ui').style.display = 'none';
+    document.getElementById('step-3-ui').style.display = 'none';
+
+    if (type === 'POINT') {
+        document.getElementById('step-1-ui').style.display = 'block';
+        document.getElementById('step-1-ui').querySelector('p').innerText = '1. ADIM: Noktayı Seç & Bilgi Gir';
+        recordingState = "SELECT_START";
+    } else if (type === 'LINE') {
+        document.getElementById('step-1-ui').style.display = 'block';
+        document.getElementById('step-2-ui').style.display = 'block';
+        document.getElementById('step-3-ui').style.display = 'block';
+        document.getElementById('step-1-ui').querySelector('p').innerText = '1. ADIM: Başlangıç Noktası Seç & Bilgi Gir';
+        recordingState = "SELECT_START";
+    } else if (type === 'POLYGON') {
+        document.getElementById('step-1-ui').style.display = 'block';
+        document.getElementById('step-1-ui').querySelector('p').innerText = '1. ADIM: Alanı Çiz & Açıklama Gir';
+        recordingState = "DRAW_POLYGON";
     }
-
-    spatialAssignments[`task_${currentTaskId}`] = { type: taskType, label: taskLabel, data: taskData };
-    commitToSystem();
-    alert(`Görev ${currentTaskId} (${taskLabel}) başarıyla mühürlendi!`);
-    resetForNextTask();
 }
 
-function commitToSystem() {
-    localStorage.setItem('bergama_cbs_master', JSON.stringify(spatialAssignments));
-    console.log("10 Seviyelik Müfredat Arka Planda Mühürlendi:", spatialAssignments);
-}
-
-function resetForNextTask() {
+function resetMacro() {
     // Reset data
-    macroData = { point: null, start: {}, end: {}, path: [], polygon: [] };
+    macroData = { start: {}, end: {}, path: [], polygon: [] };
     macroLayer.clearLayers();
     tempLine.setLatLngs([]);
-    tempPolygon.setLatLngs([]);
 
     // Reset UI
-    ['step-1-ui', 'step-2-ui', 'step-3-ui'].forEach(id => {
-        const el = document.getElementById(id);
-        el.style.opacity = '0.4';
-        el.classList.remove('active-step');
-        el.style.display = 'block'; // Make all visible by default, loadTaskTemplate will hide them
-    });
     document.getElementById('save-all-btn').style.display = "none";
     document.getElementById('start-desc').value = '';
     document.getElementById('end-desc').value = '';
     document.getElementById('input-1').style.display = 'none';
     document.getElementById('input-2').style.display = 'none';
-    document.getElementById('msg').innerText = "Lütfen listeden bir görev seçin veya mevcut göreve başlayın.";
 }
 
-function loadTaskTemplate() {
-    currentTaskId = document.getElementById('task-select').value;
-    console.log(`Loading template for task: ${currentTaskId}`);
-    resetForNextTask();
+function showInput(step) {
+    document.getElementById(`input-${step}`).style.display = 'block';
+}
 
-    const taskType = getTaskType(currentTaskId);
+// ARKA PLANA (VERİTABANINA) KAYIT
+async function saveTaskToDatabase() {
+    const payload = {
+        title: document.getElementById('task-select').selectedOptions[0].text,
+        start: { 
+            latlng: macroData.start.latlng || (macroData.polygon[0] ? macroData.polygon[0] : null), 
+            info: document.getElementById('start-desc').value 
+        },
+        end: { 
+            latlng: macroData.end.latlng || null, 
+            info: document.getElementById('end-desc').value || "" 
+        },
+        path: macroData.path.length > 0 ? macroData.path : macroData.polygon,
+        status: "published"
+    };
+
+    const response = await fetch('/api/v1/save_task', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+    });
     
-    // Configure UI based on task type
-    document.getElementById('step-2-ui').style.display = 'none';
-    document.getElementById('step-3-ui').style.display = 'none';
-
-    const step1UI = document.getElementById('step-1-ui');
-    step1UI.classList.add('active-step');
-    step1UI.style.opacity = '1';
-
-    switch (taskType) {
-        case 'POINT':
-            step1UI.querySelector('p').innerHTML = "<strong>1. ADIM:</strong> Noktayı Seç & Bilgi Gir";
-            document.getElementById('msg').innerText = "Haritada bir nokta seçin.";
-            recordingState = "SELECT_POINT";
-            break;
-        case 'LINE':
-            step1UI.querySelector('p').innerHTML = "<strong>1. ADIM:</strong> Başlangıç Noktası Seç & Bilgi Gir";
-            document.getElementById('step-2-ui').style.display = 'block';
-            document.getElementById('step-3-ui').style.display = 'block';
-            document.getElementById('msg').innerText = "Başlangıç noktasını haritada işaretleyin.";
-            recordingState = "SELECT_START";
-            break;
-        case 'POLYGON':
-            step1UI.querySelector('p').innerHTML = "<strong>1. ADIM:</strong> Alanı Çiz & Bilgi Gir";
-            document.getElementById('msg').innerText = "Haritaya tıklayarak alanın köşelerini çizin.";
-            recordingState = "DRAW_POLYGON";
-            break;
-        default:
-             document.getElementById('msg').innerText = "Bu görev tipi için kayıt arayüzü henüz tanımlanmadı.";
+    if (response.ok) {
+        alert("Hocam, 10 görevlik müfredatın bu parçası başarıyla mühürlendi!");
+        resetMacro();
+    } else {
+        alert("Görev kaydedilirken bir hata oluştu.");
     }
-}
-
-function getTaskType(taskId) {
-    const id = parseInt(taskId);
-    if (id === 1 || id === 4 || id === 5) return 'POINT';
-    if (id === 2 || id === 6 || id === 7) return 'LINE';
-    if (id === 3 || id === 9) return 'POLYGON';
-    if (id === 10) return 'FINAL'; // Special case for synthesis
-    return 'UNKNOWN';
 }
 
 // 1. ARAMA FONKSİYONU
