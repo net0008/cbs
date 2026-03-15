@@ -1,12 +1,13 @@
-from datetime import datetime, timedelta
-from typing import Any, Union
-from jose import jwt
 from passlib.context import CryptContext
+from jose import jwt
+from datetime import datetime, timedelta
+from typing import Optional
+import os
 
-# Gerçek projede bunları .env dosyasından okuyacağız
-SECRET_KEY = "COGRAFYA_GIZLI_ANAHTAR_123" 
+# Ayarlar (Normalde .env'den gelmeli)
+SECRET_KEY = os.getenv("SECRET_KEY", "cografya_cok_gizli_anahtar_9988")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 # 24 saat geçerli olsun
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -16,11 +17,12 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-def create_access_token(subject: Union[str, Any], expires_delta: timedelta = None) -> str:
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    to_encode = data.copy()
     if expires_delta:
         expire = datetime.utcnow() + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode = {"exp": expire, "sub": str(subject)}
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt

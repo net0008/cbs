@@ -3,12 +3,11 @@ from sqlalchemy import (
     Column, Integer, String, Boolean, Enum as SQLAlchemyEnum, 
     ForeignKey, DateTime, JSON, Numeric, Text
 )
-from sqlalchemy.orm import relationship, declarative_base
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from geoalchemy2 import Geometry
+from .database import Base
 
-# Veritabanı modelleri için ana sınıf
-Base = declarative_base()
 
 class UserRole(str, enum.Enum):
     """Sistemdeki kullanıcı yetki seviyeleri"""
@@ -94,3 +93,12 @@ class Classroom(Base):
 
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     teacher = relationship("User", back_populates="classrooms")
+
+class UserPoint(Base):
+    __tablename__ = "user_points"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=True) # Noktaya isim verebiliriz
+    # SRID 4326: Standart WGS84 koordinat sistemi (GPS koordinatları)
+    location = Column(Geometry(geometry_type='POINT', srid=4326))
+    user_id = Column(Integer, ForeignKey("users.id"))
