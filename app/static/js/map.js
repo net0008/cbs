@@ -195,14 +195,14 @@ async function saveTaskToDatabase() {
     const payload = {
         title: document.getElementById('task-select').selectedOptions[0].text,
         start: { 
-            latlng: startLatLng,
+            latlng: { lat: startLatLng.lat, lng: startLatLng.lng }, // Nesneyi temizledik
             info: document.getElementById('start-desc').value 
         },
         end: endLatLng ? {
-            latlng: endLatLng,
+            latlng: { lat: endLatLng.lat, lng: endLatLng.lng },
             info: document.getElementById('end-desc').value || ""
         } : null,
-        path: pathData,
+        path: pathData.map(p => ({ lat: p.lat, lng: p.lng })), // Listeyi temizledik
         status: "published"
     };
 
@@ -223,7 +223,9 @@ async function saveTaskToDatabase() {
         resetMacro();
     })
     .catch(error => {
-        alert("Görev kaydedilirken bir hata oluştu: " + error.message);
+        // Hata bir nesneyse (JSON) string'e çevir, yoksa mesajı bas
+        const errorMsg = typeof error.message === 'object' ? JSON.stringify(error.message) : error.message;
+        alert("Hocam hata var: " + errorMsg);
     });
 }
 

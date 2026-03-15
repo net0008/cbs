@@ -177,49 +177,39 @@ def save_task(
     db: Session = Depends(get_db),
     # current_user: models.User = Depends(get_current_user) # Geliştirme tamamlandığında bu satır açılmalı
 ):
-    # 1. Başlangıç her zaman var
-    start_point_wkt = f"POINT({assignment_in.start.latlng.lng} {assignment_in.start.latlng.lat})"
-
-    teacher = db.query(models.User).first()
+    # 1. Öğretmen kontrolü (Senin eklediğin dinamik yapı)
+    teacher = db.query(models.User).filter(models.User.role == "teacher_pro").first()
     if not teacher:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Görev kaydı için önce bir öğretmen hesabı oluşturulmalı."
-        )
+        raise HTTPException(status_code=400, detail="Önce öğretmen hesabı oluşturulmalı.")
 
+    # 2. Temel veriyi hazırla
+    start_wkt = f"POINT({assignment_in.start.latlng.lng} {assignment_in.start.latlng.lat})"
     new_assignment = models.Assignment(
         title=assignment_in.title,
+        assignment_type=assignment_in.assignment_type,
         start_info=assignment_in.start.info,
-        status=assignment_in.status,
         geom_start=WKTElement(start_point_wkt, srid=4326),
         teacher_id=teacher.id
     )
 
-    # 2. Bitiş varsa ekle (Nokta görevinde burası atlanır)
-    if assignment_in.end and assignment_in.end.latlng:
-        end_wkt = f"POINT({assignment_in.end.latlng.lng} {assignment_in.end.latlng.lat})"
-        new_assignment.geom_end = WKTElement(end_wkt, srid=4326)
-        new_assignment.end_info = assignment_in.end.info
-
-    # 3. Yol varsa ekle (DİKKAT: p.lng olmalı, p['lng'] değil)
-    if assignment_in.path and len(assignment_in.path) >= 2:
-        path_coords = ", ".join([f"{p.lng} {p.lat}" for p in assignment_in.path])
-        path_wkt = f"LINESTRING({path_coords})"
-        new_assignment.geom_path = WKTElement(path_wkt, srid=4326)
-
-    db.add(new_assignment)
+    # 3. Geometri Motoru (2, 3, 4. Görevler İçin)
     try:
+        if assignment_in.assignment_type == "LINESTRING" and assignment_in.path and len(assignment_in.path) >= 2:
+            coords = ", ".join([f"{p.lng} {p.lat}" for p in assignment_in.path])
+            new_assignment.geom_path = WKTElement(f"LINESTRING({coords})", srid=4326)
+            
+        elif assignment_in.assignment_type == "POLYGON" and assignment_in.path and len(assignment_in.path) >= 3:
+            # Poligonun kapanması için ilk noktayı sona ekleyelim
+            p_list = assignment_in.path
+            coords = ", ".join([f"{p.lng} {p.lat}" for p in p_list])
+            coords += f", {p_list[0].lng} {p_list[0].lat}" # Kapatma
+            new_assignment.geom_path = WKTElement(f"POLYGON(({coords}))", srid=4326)
+
+        db.add(new_assignment)
         db.commit()
-    except IntegrityError:
+        return {"status": "success", "message": f"{assignment_in.assignment_type} başarıyla kaydedildi."}
+        
+    except SQLAlchemyError as e:
         db.rollback()
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Görev kaydı için geçersiz veya eksik veri gönderildi."
-        )
-    except SQLAlchemyError:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Görev kaydedilirken veritabanı hatası oluştu."
-        )
-    return {"status": "success", "message": "Görev mühürlendi!"}
+            status_code=500, detail=f"Veritabanı hatası: {str(e)}")

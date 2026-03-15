@@ -121,6 +121,10 @@ class Assignment(Base):
     title = Column(String, nullable=False)
     start_info = Column(Text)
     end_info = Column(Text)
+    
+    # Görev tipini saklayalım (POINT, LINESTRING, POLYGON)
+    assignment_type = Column(String, nullable=False, default="POINT")
+    
     geom_start = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
     geom_end = Column(Geometry(geometry_type='POINT', srid=4326), nullable=True) 
     geom_path = Column(Geometry(geometry_type='GEOMETRY', srid=4326), nullable=True)

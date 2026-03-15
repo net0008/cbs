@@ -41,7 +41,8 @@ class NodeData(BaseModel):
 
 class AssignmentCreate(BaseModel):
     title: str
+    assignment_type: str # "POINT", "LINESTRING" veya "POLYGON"
     start: NodeData
-    end: Optional[NodeData] = None   # Artık zorunlu değil
-    path: Optional[List[LatLng]] = [] # Artık zorunlu değil
-    status: str
+    end: Optional[NodeData] = None   # Optional eklendi
+    path: Optional[List[LatLng]] = [] # Optional eklendi
+    status: str = "published"
