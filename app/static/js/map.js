@@ -16,7 +16,9 @@ let subTask = 0; // 0: Minareyi bul, 1: Camiyi bul, 2: Rota çiz
 const targetAkropol = { lat: 39.1325, lng: 27.1841 };
 
 // SEVİYE 2 HEDEFLERİ
-const selcukluMinare = [39.1205, 27.1775]; // Selçuklu Minaresi
+// SEVİYE 2 HEDEFLERİ - Güncellenmiş hassas koordinatlar
+const selcukluMinare = [39.12052, 27.17735]; // Biraz daha batıya çekildi
+const uluCami = [39.12215, 27.18185];
 
 map.on('click', function(e) {
     if (currentLevel === 1) {
@@ -97,8 +99,8 @@ function handleLevel2Click(latlng) {
         }
     } 
     else if (subTask === 1) { // Ulu Cami'yi bulma
-        if (isNear(latlng, [39.1221, 27.1818])) {
-            L.marker([39.1221, 27.1818]).addTo(markers).bindPopup("Ulu Cami").openPopup();
+        if (isNear(latlng, uluCami)) {
+            L.marker(uluCami).addTo(markers).bindPopup("Ulu Cami").openPopup();
             subTask = 2;
             updateInstruction("<strong>3. Adım:</strong> Şimdi bu iki nokta arasını <b>Çizgi</b> çekerek birleştir (Rota oluştur).");
             document.getElementById('msg').innerText = "Noktalar tamam! Şimdi yolu çizmeye başla.";
@@ -119,8 +121,12 @@ function handleLevel2Click(latlng) {
 
 // Yardımcı fonksiyonlar
 function isNear(latlng, target) {
-    const dist = Math.abs(latlng.lat - target[0]) + Math.abs(latlng.lng - target[1]);
-    return dist < 0.0008; // Hassasiyeti buradan ayarlayabilirsin
+    // Math.hypot ile gerçek kuş uçuşu mesafe kontrolü (daha sağlıklı)
+    const y = latlng.lat - target[0];
+    const x = latlng.lng - target[1];
+    const dist = Math.sqrt(x*x + y*y); 
+    
+    return dist < 0.0006; // Yaklaşık 50-60 metrelik güvenli bir alan
 }
 
 function updateInstruction(text) {
