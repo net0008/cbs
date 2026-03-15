@@ -170,8 +170,8 @@ async def upload_geojson(
     db.commit()
     return {"message": f"{counts['points']} nokta ve {counts['polygons']} alan yüklendi!"}
 
-@router.post("/save_assignment", status_code=status.HTTP_201_CREATED)
-def save_assignment(
+@router.post("/save_task", status_code=status.HTTP_201_CREATED)
+def save_task(
     assignment_in: schemas.AssignmentCreate,
     db: Session = Depends(get_db),
     # current_user: models.User = Depends(get_current_user) # Geliştirme tamamlandığında bu satır açılmalı
@@ -179,13 +179,14 @@ def save_assignment(
     # Gelen veriyi WKT formatına çevir
     start_point_wkt = f"POINT({assignment_in.start.latlng.lng} {assignment_in.start.latlng.lat})"
     end_point_wkt = f"POINT({assignment_in.end.latlng.lng} {assignment_in.end.latlng.lat})"
-    path_coords = ", ".join([f"{p.lng} {p.lat}" for p in assignment_in.path])
+    path_coords = ", ".join([f"{p['lng']} {p['lat']}" for p in assignment_in.path])
     path_linestring_wkt = f"LINESTRING({path_coords})" if path_coords else None
 
     new_assignment = models.Assignment(
         title=assignment_in.title,
         start_info=assignment_in.start.info,
         end_info=assignment_in.end.info,
+        status=assignment_in.status,
         geom_start=WKTElement(start_point_wkt, srid=4326),
         geom_end=WKTElement(end_point_wkt, srid=4326),
         teacher_id=1 # Geliştirme için sabit, sonra current_user.id olacak

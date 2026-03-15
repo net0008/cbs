@@ -29,11 +29,18 @@ app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 @app.get("/")
 async def read_index():
-    # Ana sayfaya girildiğinde index.html'i gönderir
-    index_file = os.path.join(static_path, "index.html")
-    if os.path.exists(index_file):
-        return FileResponse(index_file)
-    return {"message": "index.html bulunamadı, lütfen app/static/ klasörünü kontrol edin."}
+    # Ana sayfaya girildiğinde teacher.html'i gönderir
+    teacher_file = os.path.join(static_path, "teacher.html")
+    if os.path.exists(teacher_file):
+        return FileResponse(teacher_file)
+    return {"message": "teacher.html bulunamadı."}
+
+@app.get("/student")
+async def read_student_page():
+    student_file = os.path.join(static_path, "student.html")
+    if os.path.exists(student_file):
+        return FileResponse(student_file)
+    return {"message": "student.html bulunamadı."}
 
 @app.get("/health")
 def health_check():

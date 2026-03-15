@@ -44,3 +44,4 @@ class AssignmentCreate(BaseModel):
     start: NodeData
     end: NodeData
     path: List[LatLng]
+    status: str
