@@ -31,8 +31,8 @@ const redMarker = L.icon({
 
 let recordingStep = 1; // 1: P1, 2: P2, 3: Path
 let macroData = {
-    startPoint: null,
-    endPoint: null,
+    start: { latlng: null, info: "" },
+    end: { latlng: null, info: "" },
     path: []
 };
 
@@ -41,33 +41,55 @@ let tempLine = L.polyline([], {color: '#f59e0b', weight: 5}).addTo(map);
 
 map.on('click', function(e) {
     if (recordingStep === 1) {
-        // BAŞLANGIÇ: Yeşil
-        macroData.startPoint = e.latlng;
-        L.marker(e.latlng, {icon: greenMarker}).addTo(macroLayer).bindPopup("<b>Başlangıç</b>").openPopup();
+        // BAŞLANGIÇ NOKTASI
+        macroData.start.latlng = e.latlng;
+        L.marker(e.latlng, {icon: greenMarker}).addTo(macroLayer).bindPopup("Başlangıç Noktası").openPopup();
         
-        document.getElementById('step-1').style.color = "gray";
-        document.getElementById('step-2').style.color = "blue";
-        document.getElementById('msg').innerText = "Başlangıç noktası seçildi. Şimdi hedefi işaretle.";
-        recordingStep = 2;
+        // Inputu göster
+        document.getElementById('start-desc').style.display = "block";
+        document.getElementById('msg').innerText = "Başlangıç için açıklama gir ve 2. adıma hazırlan.";
+        document.getElementById('step-1-area').style.opacity = "1";
+        
+        // Bir sonraki tıklama için 2. adıma geç (Açıklama girildikten sonra)
+        recordingStep = 1.5; // Açıklama bekleme modu
     } 
     else if (recordingStep === 2) {
-        // BİTİŞ: Kırmızı (Artık kafa karıştırmaz)
-        macroData.endPoint = e.latlng;
-        L.marker(e.latlng, {icon: redMarker}).addTo(macroLayer).bindPopup("<b>Hedef (Bitiş)</b>").openPopup();
+        // BİTİŞ NOKTASI
+        macroData.end.latlng = e.latlng;
+        L.marker(e.latlng, {icon: redMarker}).addTo(macroLayer).bindPopup("Bitiş Noktası").openPopup();
         
-        document.getElementById('step-2').style.color = "gray";
-        document.getElementById('step-3').style.color = "blue";
-        document.getElementById('msg').innerText = "Hedef seçildi. Şimdi aradaki tarihi yolu çiz.";
-        recordingStep = 3;
+        document.getElementById('end-desc').style.display = "block";
+        document.getElementById('msg').innerText = "Bitiş için açıklama gir ve yolu çizmeye başla.";
+        document.getElementById('step-2-area').style.opacity = "1";
+        recordingStep = 2.5; 
     } 
     else if (recordingStep === 3) {
-        // 3. ARADAKİ YOLU ÇİZ
+        // YOL ÇİZİMİ
         macroData.path.push(e.latlng);
         tempLine.addLatLng(e.latlng);
         L.circleMarker(e.latlng, {radius: 3, color: '#f59e0b'}).addTo(macroLayer);
         
         document.getElementById('save-macro-btn').style.display = "block";
-        document.getElementById('msg').innerText = "Yol çiziliyor... Bitince 'Kaydı Tamamla'ya bas.";
+    }
+});
+
+// Input alanları değiştikçe veriyi güncelle (Enter'a basınca diğer adıma geç)
+document.getElementById('start-desc').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+        macroData.start.info = this.value;
+        recordingStep = 2; // Artık 2. noktaya tıklayabilir
+        document.getElementById('msg').innerText = "Harika! Şimdi bitiş noktasını seç.";
+        this.disabled = true;
+    }
+});
+
+document.getElementById('end-desc').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+        macroData.end.info = this.value;
+        recordingStep = 3; // Artık yol çizebilir
+        document.getElementById('step-3-area').style.opacity = "1";
+        document.getElementById('msg').innerText = "Noktalar tamam. Şimdi aradaki tarihi yolu çiz.";
+        this.disabled = true;
     }
 });
 
@@ -78,18 +100,6 @@ function finishMacro() {
     
     // Öğrenci moduna geçiş simülasyonu
     document.getElementById('msg').innerHTML = "<span style='color:green'>Makro Yayında! Öğrenciler artık bu görevi görebilir.</span>";
-}
-
-function resetMacro() {
-    recordingStep = 1;
-    macroData = { startPoint: null, endPoint: null, path: [] };
-    macroLayer.clearLayers();
-    tempLine.setLatLngs([]);
-    document.getElementById('step-1').style.color = "blue";
-    document.getElementById('step-2').style.color = "gray";
-    document.getElementById('step-3').style.color = "gray";
-    document.getElementById('save-macro-btn').style.display = "none";
-    document.getElementById('msg').innerText = "Kayıt sıfırlandı. 1. noktadan başla.";
 }
 
 // 1. ARAMA FONKSİYONU

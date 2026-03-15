@@ -52,19 +52,28 @@
     </div>
     
     <div class="task-box">
-        <span class="badge" id="level-badge">Öğretmen Modu: Görev Kaydı</span>
+        <span class="badge">Öğretmen Modu: Hikayeli Görev Kaydı</span>
         <h2 id="level-title">Makro Oluşturuluyor</h2>
         
         <div id="macro-steps" class="info-card">
-            <p id="step-1" style="color: blue;"><b>1. ADIM:</b> Başlangıç noktasını (📍) haritada seç.</p>
-            <p id="step-2" style="color: gray;">2. ADIM: Bitiş noktasını (🏁) haritada seç.</p>
-            <p id="step-3" style="color: gray;">3. ADIM: Aradaki yolu (🛤️) tıklayarak çiz.</p>
+            <div id="step-1-area">
+                <p id="step-1" style="color: green; font-weight: bold;">1. ADIM: Başlangıç Noktasını Seç</p>
+                <input type="text" id="start-desc" placeholder="Burası neresi? (Örn: Selçuklu Minaresi)" style="display:none; width:90%; margin-bottom:10px; padding:5px;">
+            </div>
+
+            <div id="step-2-area" style="opacity: 0.5;">
+                <p id="step-2">2. ADIM: Bitiş Noktasını Seç</p>
+                <input type="text" id="end-desc" placeholder="Varış noktası neresi? (Örn: Ulu Cami)" style="display:none; width:90%; margin-bottom:10px; padding:5px;">
+            </div>
+
+            <div id="step-3-area" style="opacity: 0.5;">
+                <p id="step-3">3. ADIM: Aradaki Yolu Çiz</p>
+            </div>
         </div>
 
         <div id="feedback">
-            <p id="msg">Kayıt bekleniyor...</p>
-            <button id="save-macro-btn" style="display:none; background: #16a34a;" onclick="finishMacro()">✅ Kaydı Tamamla ve Yayınla</button>
-            <button id="reset-macro-btn" style="margin-top:10px; background: #dc2626;" onclick="resetMacro()">🔄 Kaydı Sıfırla</button>
+            <p id="msg">Haritaya tıklayarak başlangıcı belirle.</p>
+            <button id="save-macro-btn" style="display:none; width:100%; background: #16a34a; color:white; border:none; padding:10px; border-radius:5px;" onclick="finishMacro()">✅ Kaydı Tamamla ve Yayınla</button>
         </div>
     </div>
 </div>
