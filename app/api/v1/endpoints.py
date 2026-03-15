@@ -12,6 +12,7 @@ from shapely.geometry import shape, mapping
 from jose import jwt, JWTError
 from datetime import timedelta
 import json
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
@@ -179,12 +180,19 @@ def save_task(
     # 1. Başlangıç her zaman var
     start_point_wkt = f"POINT({assignment_in.start.latlng.lng} {assignment_in.start.latlng.lat})"
 
+    teacher = db.query(models.User).first()
+    if not teacher:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Görev kaydı için önce bir öğretmen hesabı oluşturulmalı."
+        )
+
     new_assignment = models.Assignment(
         title=assignment_in.title,
         start_info=assignment_in.start.info,
         status=assignment_in.status,
         geom_start=WKTElement(start_point_wkt, srid=4326),
-        teacher_id=1
+        teacher_id=teacher.id
     )
 
     # 2. Bitiş varsa ekle (Nokta görevinde burası atlanır)
@@ -194,11 +202,24 @@ def save_task(
         new_assignment.end_info = assignment_in.end.info
 
     # 3. Yol varsa ekle (DİKKAT: p.lng olmalı, p['lng'] değil)
-    if assignment_in.path:
+    if assignment_in.path and len(assignment_in.path) >= 2:
         path_coords = ", ".join([f"{p.lng} {p.lat}" for p in assignment_in.path])
         path_wkt = f"LINESTRING({path_coords})"
         new_assignment.geom_path = WKTElement(path_wkt, srid=4326)
 
     db.add(new_assignment)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Görev kaydı için geçersiz veya eksik veri gönderildi."
+        )
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Görev kaydedilirken veritabanı hatası oluştu."
+        )
     return {"status": "success", "message": "Görev mühürlendi!"}

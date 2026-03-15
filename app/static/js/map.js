@@ -183,17 +183,26 @@ function showInput(step) {
 
 // ARKA PLANA (VERİTABANINA) KAYIT
 async function saveTaskToDatabase() {
+    const startLatLng = macroData.start.latlng || (macroData.polygon[0] ? macroData.polygon[0] : null);
+    const endLatLng = macroData.end.latlng || null;
+    const pathData = macroData.path.length > 0 ? macroData.path : macroData.polygon;
+
+    if (!startLatLng) {
+        alert("Lütfen önce başlangıç noktasını seçin.");
+        return;
+    }
+
     const payload = {
         title: document.getElementById('task-select').selectedOptions[0].text,
         start: { 
-            latlng: macroData.start.latlng || (macroData.polygon[0] ? macroData.polygon[0] : null), 
+            latlng: startLatLng,
             info: document.getElementById('start-desc').value 
         },
-        end: { 
-            latlng: macroData.end.latlng || null, 
-            info: document.getElementById('end-desc').value || "" 
-        },
-        path: macroData.path.length > 0 ? macroData.path : macroData.polygon,
+        end: endLatLng ? {
+            latlng: endLatLng,
+            info: document.getElementById('end-desc').value || ""
+        } : null,
+        path: pathData,
         status: "published"
     };
 
@@ -202,9 +211,12 @@ async function saveTaskToDatabase() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
     })
-    .then(response => {
-        if (!response.ok) throw new Error('Sunucu hatası!');
-        return response.json();
+    .then(async response => {
+        const responseData = await response.json().catch(() => ({}));
+        if (!response.ok) {
+            throw new Error(responseData.detail || 'Sunucu hatası!');
+        }
+        return responseData;
     })
     .then(data => {
         alert("Hocam görev başarıyla mühürlendi ve veritabanına kaydedildi!");
