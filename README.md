@@ -1,1 +1,1 @@
-# Co�rafya CBS Portal
+# Coğrafya CBS Portalı
