@@ -26,11 +26,11 @@
         #feedback { padding: 20px; border-top: 1px solid #e2e8f0; background: #fff; }
         
         /* Harita Alanı */
-        /* Harita üzerinde fare imlecini + yapar */
+        /* Haritayı tam hedefleme moduna sokar */
         #map { 
             flex-grow: 1; 
             height: 100%; 
-            cursor: crosshair !important; /* Standart ok yerine artı işareti */
+            cursor: crosshair !important; 
         }
 
         button { 
@@ -38,9 +38,9 @@
             border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s;
         }
         button:hover { background: #1d4ed8; transform: translateY(-1px); }
-        /* Tıklanabilir öğelerin üzerinde el işareti çıksın */
-        .leaflet-interactive {
-            cursor: pointer !important;
+        /* Harita üzerindeki butonlarda el işareti çıksın */
+        .leaflet-container {
+            cursor: crosshair !important;
         }
     </style>
 </head>

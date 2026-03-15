@@ -16,8 +16,8 @@ let subTask = 0; // 0: Minareyi bul, 1: Camiyi bul, 2: Rota çiz
 const targetAkropol = { lat: 39.1325, lng: 27.1841 };
 
 // SEVİYE 2 HEDEFLERİ
-// SEVİYE 2 HEDEFLERİ - Güncellenmiş hassas koordinatlar
-const selcukluMinare = [39.12052, 27.17735]; // Biraz daha batıya çekildi
+// SEVİYE 2 HEDEFLERİ - Bergama merkezli koordinatlar
+const selcukluMinare = [39.12056, 27.17736]; 
 const uluCami = [39.12215, 27.18185];
 
 map.on('click', function(e) {
@@ -89,13 +89,14 @@ function startLevel2() {
 
 function handleLevel2Click(latlng) {
     if (subTask === 0) { // Selçuklu Minaresi'ni bulma
-        if (isNear(latlng, [39.1205, 27.1775])) {
-            L.marker([39.1205, 27.1775]).addTo(markers).bindPopup("Selçuklu Minaresi").openPopup();
+        if (isNear(latlng, selcukluMinare)) {
+            L.marker(selcukluMinare).addTo(markers).bindPopup("Selçuklu Minaresi").openPopup();
             subTask = 1;
             updateInstruction("<strong>2. Adım:</strong> Şimdi <b>Ulu Cami</b>'yi (Yıldırım Bayezid) bul ve işaretle.");
-            document.getElementById('msg').innerText = "Harika! İlk noktayı buldun.";
+            document.getElementById('msg').innerText = "Tebrikler! Selçuklu Minaresi'ni buldun.";
         } else {
-            alert("Minare biraz daha batıda kalıyor, tekrar dene!");
+            // Sadece yön gösterelim, 'batıda' gibi kafa karıştırıcı detayları şimdilik kısalım
+            document.getElementById('msg').innerHTML = "<span style='color:red'>Biraz daha dikkatli bak, minare Tabakhane Köprüsü yakınındadır.</span>";
         }
     } 
     else if (subTask === 1) { // Ulu Cami'yi bulma
@@ -121,12 +122,19 @@ function handleLevel2Click(latlng) {
 
 // Yardımcı fonksiyonlar
 function isNear(latlng, target) {
-    // Math.hypot ile gerçek kuş uçuşu mesafe kontrolü (daha sağlıklı)
-    const y = latlng.lat - target[0];
-    const x = latlng.lng - target[1];
-    const dist = Math.sqrt(x*x + y*y); 
+    /**
+     * HATA PAYI KONTROLÜ
+     * dist < 0.0015 yaklaşık 150-180 metrelik bir tolerans sağlar.
+     * Bu, öğrencinin 'yaklaşık' doğru yere tıklamasını yeterli kılar.
+     */
+    const dLat = latlng.lat - target[0];
+    const dLng = latlng.lng - target[1];
+    const dist = Math.sqrt(dLat * dLat + dLng * dLng); 
     
-    return dist < 0.0006; // Yaklaşık 50-60 metrelik güvenli bir alan
+    // Hata ayıklama için konsola mesafeyi yazdıralım (F12 ile bakabilirsin)
+    console.log("Hedefe olan uzaklık: " + dist);
+    
+    return dist < 0.0015; // Hata payı ciddi oranda artırıldı
 }
 
 function updateInstruction(text) {
