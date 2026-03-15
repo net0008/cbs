@@ -42,6 +42,6 @@ class NodeData(BaseModel):
 class AssignmentCreate(BaseModel):
     title: str
     start: NodeData
-    end: NodeData
-    path: List[LatLng]
+    end: Optional[NodeData] = None   # Artık zorunlu değil
+    path: Optional[List[LatLng]] = [] # Artık zorunlu değil
     status: str

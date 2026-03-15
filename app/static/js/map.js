@@ -197,18 +197,22 @@ async function saveTaskToDatabase() {
         status: "published"
     };
 
-    const response = await fetch('/api/v1/save_task', {
+    fetch('/api/v1/save_task', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(payload)
-    });
-    
-    if (response.ok) {
-        alert("Hocam, 10 görevlik müfredatın bu parçası başarıyla mühürlendi!");
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Sunucu hatası!');
+        return response.json();
+    })
+    .then(data => {
+        alert("Hocam görev başarıyla mühürlendi ve veritabanına kaydedildi!");
         resetMacro();
-    } else {
-        alert("Görev kaydedilirken bir hata oluştu.");
-    }
+    })
+    .catch(error => {
+        alert("Görev kaydedilirken bir hata oluştu: " + error.message);
+    });
 }
 
 // 1. ARAMA FONKSİYONU

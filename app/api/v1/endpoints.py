@@ -176,26 +176,29 @@ def save_task(
     db: Session = Depends(get_db),
     # current_user: models.User = Depends(get_current_user) # Geliştirme tamamlandığında bu satır açılmalı
 ):
-    # Gelen veriyi WKT formatına çevir
+    # 1. Başlangıç her zaman var
     start_point_wkt = f"POINT({assignment_in.start.latlng.lng} {assignment_in.start.latlng.lat})"
-    end_point_wkt = f"POINT({assignment_in.end.latlng.lng} {assignment_in.end.latlng.lat})"
-    path_coords = ", ".join([f"{p['lng']} {p['lat']}" for p in assignment_in.path])
-    path_linestring_wkt = f"LINESTRING({path_coords})" if path_coords else None
 
     new_assignment = models.Assignment(
         title=assignment_in.title,
         start_info=assignment_in.start.info,
-        end_info=assignment_in.end.info,
         status=assignment_in.status,
         geom_start=WKTElement(start_point_wkt, srid=4326),
-        geom_end=WKTElement(end_point_wkt, srid=4326),
-        teacher_id=1 # Geliştirme için sabit, sonra current_user.id olacak
+        teacher_id=1
     )
-    if path_linestring_wkt:
-        new_assignment.geom_path = WKTElement(path_linestring_wkt, srid=4326)
+
+    # 2. Bitiş varsa ekle (Nokta görevinde burası atlanır)
+    if assignment_in.end and assignment_in.end.latlng:
+        end_wkt = f"POINT({assignment_in.end.latlng.lng} {assignment_in.end.latlng.lat})"
+        new_assignment.geom_end = WKTElement(end_wkt, srid=4326)
+        new_assignment.end_info = assignment_in.end.info
+
+    # 3. Yol varsa ekle (DİKKAT: p.lng olmalı, p['lng'] değil)
+    if assignment_in.path:
+        path_coords = ", ".join([f"{p.lng} {p.lat}" for p in assignment_in.path])
+        path_wkt = f"LINESTRING({path_coords})"
+        new_assignment.geom_path = WKTElement(path_wkt, srid=4326)
 
     db.add(new_assignment)
     db.commit()
-    db.refresh(new_assignment)
-    
-    return {"status": "success", "message": "Ödev başarıyla kaydedildi!", "assignment_id": new_assignment.id}
+    return {"status": "success", "message": "Görev mühürlendi!"}

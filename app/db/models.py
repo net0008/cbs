@@ -122,8 +122,8 @@ class Assignment(Base):
     start_info = Column(Text)
     end_info = Column(Text)
     geom_start = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
-    geom_end = Column(Geometry(geometry_type='POINT', srid=4326), nullable=False)
-    geom_path = Column(Geometry(geometry_type='LINESTRING', srid=4326))
+    geom_end = Column(Geometry(geometry_type='POINT', srid=4326), nullable=True) 
+    geom_path = Column(Geometry(geometry_type='GEOMETRY', srid=4326), nullable=True)
     status = Column(String, default="draft")
     
     teacher_id = Column(Integer, ForeignKey("users.id"), nullable=False)
