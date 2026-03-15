@@ -26,7 +26,7 @@
         #feedback { padding: 20px; border-top: 1px solid #e2e8f0; background: #fff; }
         
         /* Harita Alanı */
-        /* Haritayı tam hedefleme moduna sokar */
+        /* Harita üzerinde fareyi tam bir hedefleyici (+) yapar */
         #map { 
             flex-grow: 1; 
             height: 100%; 
@@ -38,7 +38,7 @@
             border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s;
         }
         button:hover { background: #1d4ed8; transform: translateY(-1px); }
-        /* Harita üzerindeki butonlarda el işareti çıksın */
+        /* Harita üzerinde bir yere tıklandığında veya marker üzerindeyken de artı kalsın */
         .leaflet-container {
             cursor: crosshair !important;
         }

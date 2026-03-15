@@ -16,9 +16,9 @@ let subTask = 0; // 0: Minareyi bul, 1: Camiyi bul, 2: Rota çiz
 const targetAkropol = { lat: 39.1325, lng: 27.1841 };
 
 // SEVİYE 2 HEDEFLERİ
-// SELÇUKLU MİNARESİ - OSM İkonu ile tam uyumlu koordinat
-const selcukluMinare = [39.12051, 27.17740]; 
-const uluCami = [39.12215, 27.18185];
+// SEVİYE 2 YENİ HEDEFLER (Sorunsuz ve Dev Yapılar)
+const yer1_Muze = [39.1192, 27.1772];      // Bergama Müzesi
+const yer2_KizilAvlu = [39.1219, 27.1833]; // Kızıl Avlu (Bazilika)
 
 map.on('click', function(e) {
     if (currentLevel === 1) {
@@ -75,66 +75,61 @@ function startLevel2() {
     routePoints = [];
     if(tempRoute) tempRoute.setLatLngs([]);
     
-    document.getElementById('next-btn').style.display = "none";
-    
-    document.getElementById('level-title').innerText = "Adım Adım Rota Oluştur";
+    document.getElementById('level-title').innerText = "Tarihi Duraklar Arası Yolculuk";
     document.getElementById('info-card-content').innerHTML = `
         <strong>📚 Bilgi Notu:</strong><br>
-        Önce önemli noktaları (nokta verisi) belirleyip, sonra aralarındaki bağlantıyı (çizgi verisi) kuracağız.
+        CBS'de noktalar birleşerek <b>Çizgi (Line)</b> verisini oluşturur. Bu, yolların ve rotaların temelidir.
     `;
-    updateInstruction("<strong>1. Adım:</strong> Bergama'nın en eski Türk eseri olan <b>Selçuklu Minaresi</b>'ni haritada bul ve işaretle.");
     
-    map.flyTo([39.1213, 27.1796], 17);
+    // Görev metni güncellendi
+    updateInstruction("<strong>1. Adım:</strong> Haritanın tam ortasındaki büyük bahçeli binayı, yani <b>Bergama Müzesi</b>'ni bul ve işaretle.");
+    
+    // Haritayı iki dev yapıyı da görecek şekilde genişletiyoruz
+    map.flyTo([39.1205, 27.1800], 16);
+    document.getElementById('next-btn').style.display = "none";
 }
 
 function handleLevel2Click(latlng) {
-    if (subTask === 0) { // Selçuklu Minaresi'ni bulma
-        if (isNear(latlng, selcukluMinare)) {
-            // Başarılı olduğunda tam ikonun üstüne yeşil bir marker koyalım
-            L.marker(selcukluMinare, {icon: L.divIcon({className: 'success-marker', html: '📍'})})
-             .addTo(markers).bindPopup("<b>Tebrikler!</b> Selçuklu Minaresi").openPopup();
+    if (subTask === 0) { // Müze Kontrolü
+        if (isNear(latlng, yer1_Muze)) {
+            L.marker(yer1_Muze).addTo(markers).bindPopup("<b>Bergama Müzesi</b>").openPopup();
             
             subTask = 1;
-            updateInstruction("<strong>2. Adım:</strong> Harika! Şimdi <b>Ulu Cami</b>'yi (Yıldırım Bayezid) bul ve işaretle.");
-            document.getElementById('msg').innerText = "Nokta doğrulandı. Sıradaki hedef Ulu Cami.";
+            updateInstruction("<strong>2. Adım:</strong> Harika! Şimdi doğuya doğru bak ve dev kırmızı tuğlalı yapıyı, <b>Kızıl Avlu</b>'yu işaretle.");
+            document.getElementById('msg').innerText = "Müze tamam! Şimdi Kızıl Avlu'ya tıkla.";
         } else {
-            // Artık 'batıda' falan demiyoruz, sadece 'biraz daha yaklaş' diyoruz
-            document.getElementById('msg').innerHTML = "<span style='color:red'>Hala biraz uzaktasın, tam minarenin göbeğine odaklan!</span>";
+            document.getElementById('msg').innerHTML = "<span style='color:red'>Hala bulamadın mı? Şehrin merkezindeki en büyük ağaçlıklı alan müzedir.</span>";
         }
     } 
-    else if (subTask === 1) { // Ulu Cami'yi bulma
-        if (isNear(latlng, uluCami)) {
-            L.marker(uluCami).addTo(markers).bindPopup("Ulu Cami").openPopup();
+    else if (subTask === 1) { // Kızıl Avlu Kontrolü
+        if (isNear(latlng, yer2_KizilAvlu)) {
+            L.marker(yer2_KizilAvlu).addTo(markers).bindPopup("<b>Kızıl Avlu</b>").openPopup();
             subTask = 2;
-            updateInstruction("<strong>3. Adım:</strong> Şimdi bu iki nokta arasını <b>Çizgi</b> çekerek birleştir (Rota oluştur).");
+            updateInstruction("<strong>3. Adım:</strong> Şimdi Müze ile Kızıl Avlu arasını <b>Çizgi</b> çekerek birleştir (Rota oluştur).");
             document.getElementById('msg').innerText = "Noktalar tamam! Şimdi yolu çizmeye başla.";
             // Kontrol butonu burada belirsin
             document.getElementById('next-btn').innerText = "Rotayı Kontrol Et";
             document.getElementById('next-btn').style.display = "block";
             document.getElementById('next-btn').onclick = validateRoute;
         } else {
-            alert("Ulu Cami biraz daha kuzeydoğuda, minarenin ilerisinde!");
+            alert("Kızıl Avlu sağ taraftaki o devasa kırmızı binadır!");
         }
     }
-    else if (subTask === 2) { // Rota çizme
+    else if (subTask === 2) { // Rota Çizimi
         routePoints.push(latlng);
         tempRoute.addLatLng(latlng);
-        L.circleMarker(latlng, {radius: 3, color: '#f59e0b'}).addTo(markers);
+        L.circleMarker(latlng, {radius: 4, color: '#f59e0b'}).addTo(markers);
     }
 }
 
 // Yardımcı fonksiyonlar
 function isNear(latlng, target) {
+    // Toleransı biraz daha esnettik (0.002 yaklaşık 200 metre demek)
     const dLat = latlng.lat - target[0];
     const dLng = latlng.lng - target[1];
     const dist = Math.sqrt(dLat * dLat + dLng * dLng); 
     
-    // Debug: Tıkladığın yerin koordinatını konsola yazdır (F12 ile görebilirsin)
-    console.log("Tıklanan: " + latlng.lat + ", " + latlng.lng);
-    console.log("Mesafe: " + dist);
-    
-    // Toleransı 0.0025 yaparak hedefi iyice genişlettik (Hocam artık kaçmaz!)
-    return dist < 0.0025; 
+    return dist < 0.002; 
 }
 
 function updateInstruction(text) {
