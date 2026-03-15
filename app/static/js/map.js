@@ -16,8 +16,8 @@ let subTask = 0; // 0: Minareyi bul, 1: Camiyi bul, 2: Rota çiz
 const targetAkropol = { lat: 39.1325, lng: 27.1841 };
 
 // SEVİYE 2 HEDEFLERİ
-// SEVİYE 2 HEDEFLERİ - Bergama merkezli koordinatlar
-const selcukluMinare = [39.12056, 27.17736]; 
+// SELÇUKLU MİNARESİ - OSM İkonu ile tam uyumlu koordinat
+const selcukluMinare = [39.12051, 27.17740]; 
 const uluCami = [39.12215, 27.18185];
 
 map.on('click', function(e) {
@@ -90,13 +90,16 @@ function startLevel2() {
 function handleLevel2Click(latlng) {
     if (subTask === 0) { // Selçuklu Minaresi'ni bulma
         if (isNear(latlng, selcukluMinare)) {
-            L.marker(selcukluMinare).addTo(markers).bindPopup("Selçuklu Minaresi").openPopup();
+            // Başarılı olduğunda tam ikonun üstüne yeşil bir marker koyalım
+            L.marker(selcukluMinare, {icon: L.divIcon({className: 'success-marker', html: '📍'})})
+             .addTo(markers).bindPopup("<b>Tebrikler!</b> Selçuklu Minaresi").openPopup();
+            
             subTask = 1;
-            updateInstruction("<strong>2. Adım:</strong> Şimdi <b>Ulu Cami</b>'yi (Yıldırım Bayezid) bul ve işaretle.");
-            document.getElementById('msg').innerText = "Tebrikler! Selçuklu Minaresi'ni buldun.";
+            updateInstruction("<strong>2. Adım:</strong> Harika! Şimdi <b>Ulu Cami</b>'yi (Yıldırım Bayezid) bul ve işaretle.");
+            document.getElementById('msg').innerText = "Nokta doğrulandı. Sıradaki hedef Ulu Cami.";
         } else {
-            // Sadece yön gösterelim, 'batıda' gibi kafa karıştırıcı detayları şimdilik kısalım
-            document.getElementById('msg').innerHTML = "<span style='color:red'>Biraz daha dikkatli bak, minare Tabakhane Köprüsü yakınındadır.</span>";
+            // Artık 'batıda' falan demiyoruz, sadece 'biraz daha yaklaş' diyoruz
+            document.getElementById('msg').innerHTML = "<span style='color:red'>Hala biraz uzaktasın, tam minarenin göbeğine odaklan!</span>";
         }
     } 
     else if (subTask === 1) { // Ulu Cami'yi bulma
@@ -122,19 +125,16 @@ function handleLevel2Click(latlng) {
 
 // Yardımcı fonksiyonlar
 function isNear(latlng, target) {
-    /**
-     * HATA PAYI KONTROLÜ
-     * dist < 0.0015 yaklaşık 150-180 metrelik bir tolerans sağlar.
-     * Bu, öğrencinin 'yaklaşık' doğru yere tıklamasını yeterli kılar.
-     */
     const dLat = latlng.lat - target[0];
     const dLng = latlng.lng - target[1];
     const dist = Math.sqrt(dLat * dLat + dLng * dLng); 
     
-    // Hata ayıklama için konsola mesafeyi yazdıralım (F12 ile bakabilirsin)
-    console.log("Hedefe olan uzaklık: " + dist);
+    // Debug: Tıkladığın yerin koordinatını konsola yazdır (F12 ile görebilirsin)
+    console.log("Tıklanan: " + latlng.lat + ", " + latlng.lng);
+    console.log("Mesafe: " + dist);
     
-    return dist < 0.0015; // Hata payı ciddi oranda artırıldı
+    // Toleransı 0.0025 yaparak hedefi iyice genişlettik (Hocam artık kaçmaz!)
+    return dist < 0.0025; 
 }
 
 function updateInstruction(text) {
