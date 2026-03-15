@@ -2,28 +2,61 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Bergama CBS Akademi - Seviye 1</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bergama CBS Akademi</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
-        body { display: flex; height: 100vh; margin: 0; font-family: sans-serif; }
-        #sidebar { width: 30%; padding: 20px; background: #f4f4f4; border-right: 2px solid #ddd; z-index: 1000; }
-        #map { width: 70%; }
-        .success { color: green; font-weight: bold; display: none; }
-        button { padding: 10px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }
+        :root { --primary: #2563eb; --success: #16a34a; --bg: #f8fafc; --text: #1e293b; }
+        body { margin: 0; display: flex; height: 100vh; font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); }
+        
+        /* Sol Panel - Code.org Stili */
+        #sidebar { 
+            width: 380px; background: white; border-right: 1px solid #e2e8f0; 
+            display: flex; flex-direction: column; box-shadow: 4px 0 15px rgba(0,0,0,0.05); z-index: 1000;
+        }
+        .header { padding: 20px; background: var(--primary); color: white; }
+        .header h1 { margin: 0; font-size: 1.2rem; }
+        
+        .task-box { padding: 25px; flex-grow: 1; overflow-y: auto; }
+        .badge { background: #dbeafe; color: var(--primary); padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        
+        .info-card { background: #f1f5f9; padding: 15px; border-radius: 10px; margin: 15px 0; border-left: 4px solid var(--primary); }
+        
+        #feedback { padding: 20px; border-top: 1px solid #e2e8f0; background: #fff; }
+        
+        /* Harita Alanı */
+        #map { flex-grow: 1; height: 100%; }
+
+        button { 
+            width: 100%; padding: 12px; background: var(--primary); color: white; 
+            border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s;
+        }
+        button:hover { background: #1d4ed8; transform: translateY(-1px); }
     </style>
 </head>
 <body>
 
 <div id="sidebar">
-    <h2>Seviye 1: Noktayı Koy</h2>
-    <p><b>Mekânsal Veri Nedir?</b> Herhangi bir özelliğin nerede olduğunu (konumunu) ifade eder.</p>
-    <p><b>Görevin:</b> Haritayı kullanarak <b>Bergama Akropolü</b>'nü bul ve üzerine tıkla. Tarihi yapılar gibi küçük alanlı veriler haritada nokta ile gösterilir.</p>
+    <div class="header">
+        <h1>📍 Bergama CBS Akademi</h1>
+    </div>
     
-    <div id="feedback" style="margin-top: 20px;">
-        <span id="msg">Hadi, Akropol'ü işaretle!</span>
-        <div id="next-btn" style="display:none; margin-top:10px;">
-            <button onclick="window.location.reload()">Sonraki Göreve Geç!</button>
+    <div class="task-box">
+        <span class="badge">Seviye 1 / 10</span>
+        <h2 style="margin-top:10px;">Noktayı Koy!</h2>
+        
+        <div class="info-card">
+            <strong>📚 Bilgi Notu:</strong><br>
+            Okul, ev veya tarihi yapılar gibi sınırları küçük olan mekânsal veriler haritada <b>nokta</b> sembolü ile gösterilir.
         </div>
+
+        <p><strong>Görevin:</strong> Haritayı kullanarak tarihin kalbi olan <b>Bergama Akropolü</b>'nü bul ve üzerine bir kez tıkla.</p>
+    </div>
+
+    <div id="feedback">
+        <p id="msg" style="color: #64748b;">Harita üzerinde seçimini bekliyorum...</p>
+        <button id="next-btn" style="display:none;" onclick="startLevel2()">Sonraki Göreve Geç →</button>
     </div>
 </div>
 
@@ -31,18 +64,5 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="/static/js/map.js"></script>
-</body>
-</html>
-        
-        <div class="upload-bar">
-            <input type="file" id="geoJsonInput" accept=".geojson">
-            <button onclick="uploadFile()">Katman Yükle (.geojson)</button>
-        </div>
-        
-        <div id="map"></div>
-    </div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="/static/js/map.js"></script>
 </body>
 </html>
