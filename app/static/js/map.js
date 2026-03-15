@@ -6,46 +6,126 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap katkıda bulunanlar'
 }).addTo(map);
 
+// Dinamik olarak eklenecek noktalar için bir katman grubu oluşturalım
+const pointsLayer = L.layerGroup().addTo(map);
+
 // Bir marker (işaretçi) ekle
 const marker = L.marker([39.12, 27.18]).addTo(map);
 marker.bindPopup("<b>Bergama CBS Merkezi</b><br>Buradan başlıyoruz.").openPopup();
 
-// Haritaya tıklandığında koordinatları konsola yaz (İlerde veritabanına kaydedeceğiz)
+// Haritaya tıklandığında yeni nokta ekleme
+// Not: Bu işlem için /save-point endpoint'i yetkilendirme (token) gerektirir.
+// Geliştirme aşamasında bu endpoint'in kilidini geçici olarak kaldırabilir veya
+// fetch isteğine geçerli bir token ekleyebilirsiniz.
 map.on('click', function(e) {
     const coords = {
         lat: e.latlng.lat,
         lng: e.latlng.lng,
-        name: "Harita Tıklaması"
+        name: "Yeni Tıklama Noktası"
     };
 
-    // API'ye veriyi gönder
+    // API'ye veriyi gönder (Yetkilendirme başlığı eklenmeli)
     fetch('/api/v1/save-point', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            // 'Authorization': `Bearer ${token}` // Gerçek uygulamada token buraya eklenmeli
+        },
         body: JSON.stringify(coords)
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => { throw new Error(err.detail || 'Bilinmeyen bir hata oluştu.') });
+        }
+        return response.json();
+    })
     .then(data => {
-        // Kaydedilen yere bir marker koy
-        L.marker([coords.lat, coords.lng]).addTo(map)
-            .bindPopup("Veritabanına Kaydedildi!").openPopup();
         console.log(data.message);
+        // Haritayı anında güncellemek için noktaları yeniden yükle
+        loadSavedPoints();
+    })
+    .catch(error => {
+        alert("Nokta kaydedilemedi: " + error.message);
+        console.error(error);
     });
 });
 
-// Veritabanındaki tüm noktaları yükle
+// Kategorilere göre renk belirleyen fonksiyon
+function getIconColor(category) {
+    switch(category) {
+        case 'Müze': return 'red';
+        case 'Sağlık': return 'green';
+        case 'Tarihi Yer': return 'orange';
+        default: return 'blue'; // 'Genel' ve diğerleri için
+    }
+}
+
+// Veritabanındaki tüm noktaları yükle ve haritaya çiz
 function loadSavedPoints() {
     fetch('/api/v1/get-points')
         .then(response => response.json())
         .then(points => {
+            pointsLayer.clearLayers(); // Önceki noktaları temizle
             points.forEach(p => {
-                L.marker([p.lat, p.lng])
-                    .addTo(map)
-                    .bindPopup(`<b>${p.name}</b><br>ID: ${p.id}`);
+                const popupContent = `
+                    <b>${p.name}</b><br>
+                    Kategori: ${p.category}<hr>
+                    <button class="delete-btn" onclick="deletePoint(${p.id})">Bu Noktayı Sil</button>
+                `;
+
+                L.circleMarker([p.lat, p.lng], {
+                    radius: 8,
+                    fillColor: getIconColor(p.category),
+                    color: "#000",
+                    weight: 1,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                })
+                .addTo(pointsLayer)
+                .bindPopup(popupContent);
             });
-            console.log(`${points.length} nokta yüklendi.`);
-        });
+            console.log(`${points.length} nokta veritabanından yüklendi.`);
+        })
+        .catch(err => console.error("Noktalar yüklenirken hata oluştu:", err));
+}
+
+// Nokta silme fonksiyonu
+function deletePoint(pointId) {
+    if (!confirm(`ID: ${pointId} olan noktayı silmek istediğinizden emin misiniz?`)) {
+        return;
+    }
+
+    fetch(`/api/v1/delete-point/${pointId}`, {
+        method: 'DELETE',
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert(data.message);
+        loadSavedPoints(); // Haritayı yenilemek için noktaları tekrar yükle
+    })
+    .catch(error => alert("Hata: " + error.message));
 }
 
 // Harita hazır olduğunda noktaları getir
 loadSavedPoints();
+
+async function uploadFile() {
+    const fileInput = document.getElementById('geoJsonInput');
+    if (!fileInput.files[0]) return alert("Lütfen bir dosya seçin!");
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+
+    try {
+        const response = await fetch('/api/v1/upload-geojson', {
+            method: 'POST',
+            body: formData // Header eklemiyoruz, doğrudan gönderiyoruz
+        });
+
+        const data = await response.json();
+        alert(data.message);
+        loadSavedPoints(); // Haritayı anında güncelle
+    } catch (err) {
+        alert("Bağlantı hatası oluştu!");
+    }
+}

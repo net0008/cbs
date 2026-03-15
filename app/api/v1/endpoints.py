@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm, OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from app.db.database import get_db
@@ -10,6 +10,7 @@ from geoalchemy2.elements import WKTElement
 from geoalchemy2.shape import to_shape
 from jose import jwt, JWTError
 from datetime import timedelta
+import json
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/login")
 
@@ -65,7 +66,11 @@ def login_for_access_token(
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/save-point")
-def save_point(point_in: schemas.PointCreate, db: Session = Depends(get_db)):
+def save_point(
+    point_in: schemas.PointCreate, 
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user) # KİLİT BURADA!
+):
     # Koordinatları PostGIS formatına (Well-Known Text) çeviriyoruz
     # Dikkat: PostGIS formatı (Longitude, Latitude) sırasıyla çalışır
     wkt_point = f"POINT({point_in.lng} {point_in.lat})"
@@ -73,11 +78,11 @@ def save_point(point_in: schemas.PointCreate, db: Session = Depends(get_db)):
     new_point = models.UserPoint(
         name=point_in.name,
         location=WKTElement(wkt_point, srid=4326),
-        user_id=1 # Şimdilik seni (admin) varsayıyoruz
+        user_id=current_user.id # Artık ID'yi giriş yapan kullanıcıdan alıyor
     )
     db.add(new_point)
     db.commit()
-    return {"status": "success", "message": "Nokta veritabanına kazındı!"}
+    return {"status": "success", "message": f"Nokta {current_user.full_name} adına kaydedildi!"}
 
 @router.get("/get-points")
 def get_points(db: Session = Depends(get_db)):
@@ -90,7 +95,47 @@ def get_points(db: Session = Depends(get_db)):
         result.append({
             "id": p.id,
             "name": p.name,
+            "category": p.category,
             "lat": shape.y, # Point(lng lat) olduğu için y lat'tır
             "lng": shape.x
         })
     return result
+
+@router.delete("/delete-point/{point_id}")
+def delete_point(point_id: int, db: Session = Depends(get_db)):
+    db_point = db.query(models.UserPoint).filter(models.UserPoint.id == point_id).first()
+    if not db_point:
+        raise HTTPException(status_code=404, detail="Nokta bulunamadı")
+    db.delete(db_point)
+    db.commit()
+    return {"message": "Nokta başarıyla silindi"}
+
+@router.post("/upload-geojson")
+async def upload_geojson(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+    # current_user satırını sildik, artık kapı herkese açık
+):
+    # Dosyayı oku
+    contents = await file.read()
+    data = json.loads(contents)
+    
+    count = 0
+    for feature in data.get("features", []):
+        geom = feature.get("geometry")
+        properties = feature.get("properties", {})
+        
+        if geom and geom.get("type") == "Point":
+            lng, lat = geom.get("coordinates")
+            wkt_point = f"POINT({lng} {lat})"
+            
+            new_point = models.UserPoint(
+                name=properties.get("name", "İçe Aktarılan Nokta"),
+                location=WKTElement(wkt_point, srid=4326),
+                user_id=1 # Şimdilik senin ID'ni (1) sabitliyoruz
+            )
+            db.add(new_point)
+            count += 1
+            
+    db.commit()
+    return {"status": "success", "message": f"{count} adet Bergama noktası yüklendi!"}

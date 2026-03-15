@@ -18,7 +18,27 @@ header {
     text-align: center;
 }
 
+.upload-bar {
+    padding: 10px;
+    background: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    text-align: center;
+}
+
 #map {
     flex: 1; /* Kalan tüm alanı kapla */
     width: 100%;
+}
+
+/* Leaflet popup içindeki silme butonu için stil */
+.delete-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    cursor: pointer;
+    border-radius: 3px;
+    margin-top: 5px;
+    width: 100%;
+    font-weight: bold;
 }
