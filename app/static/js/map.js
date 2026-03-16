@@ -182,6 +182,23 @@ function showInput(step) {
 }
 
 // ARKA PLANA (VERİTABANINA) KAYIT
+async function loginTeacher(email, password) {
+    const formData = new FormData();
+    formData.append('username', email); // FastAPI OAuth2 'username' bekler
+    formData.append('password', password);
+
+    const response = await fetch('/api/v1/login', {
+        method: 'POST',
+        body: formData
+    });
+
+    const data = await response.json();
+    if (data.access_token) {
+        localStorage.setItem('cbs_token', data.access_token);
+        console.log("Hocam giriş başarılı, token alındı.");
+    }
+}
+
 async function saveTaskToDatabase() {
     const startLatLng = macroData.start.latlng || (macroData.polygon[0] ? macroData.polygon[0] : null);
     const endLatLng = macroData.end.latlng || null;
@@ -192,8 +209,10 @@ async function saveTaskToDatabase() {
         return;
     }
 
+    const taskType = getTaskType(currentTaskId);
     const payload = {
         title: document.getElementById('task-select').selectedOptions[0].text,
+        assignment_type: taskType === 'LINE' ? 'LINESTRING' : taskType,
         start: { 
             latlng: { lat: startLatLng.lat, lng: startLatLng.lng }, // Nesneyi temizledik
             info: document.getElementById('start-desc').value 
@@ -206,9 +225,14 @@ async function saveTaskToDatabase() {
         status: "published"
     };
 
+    const token = localStorage.getItem('cbs_token');
+
     fetch('/api/v1/save_task', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer ' + token // Kimlik kartını buraya ekledik
+        },
         body: JSON.stringify(payload)
     })
     .then(async response => {

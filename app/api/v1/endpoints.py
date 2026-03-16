@@ -39,10 +39,12 @@ router = APIRouter()
 
 @router.post("/register", response_model=schemas.UserOut)
 def register_user(user_in: schemas.UserCreate, db: Session = Depends(get_db)):
-    user = crud_user.get_user_by_email(db, email=user_in.email)
-    if user:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bu e-posta zaten kayıtlı.")
-    return crud_user.create_user(db=db, user_in=user_in)
+    try:
+        user = crud_user.create_user(db=db, user_in=user_in)
+        return user
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bu e-posta adresi zaten kayıtlı.")
 
 @router.post("/login", response_model=schemas.Token)
 def login_for_access_token(
@@ -67,11 +69,11 @@ def login_for_access_token(
     
     return {"access_token": access_token, "token_type": "bearer"}
 
-@router.post("/save-point")
+@router.post("/save-point", response_model=schemas.Message)
 def save_point(
     point_in: schemas.PointCreate,
-    db: Session = Depends(get_db)
-    # current_user satırını siliyoruz ki tıklayınca hata vermesin
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     # Koordinatları PostGIS formatına (Well-Known Text) çeviriyoruz
     # Dikkat: PostGIS formatı (Longitude, Latitude) sırasıyla çalışır
@@ -81,15 +83,19 @@ def save_point(
         name=point_in.name,
         category="Genel", # Varsayılan kategori
         location=WKTElement(wkt_point, srid=4326),
-        user_id=1 # Senin ID'ni (1) buraya sabitliyoruz
+        user_id=current_user.id
     )
-    db.add(new_point)
-    db.commit()
-    return {"status": "success", "message": "Nokta kaydedildi!"}
+    try:
+        db.add(new_point)
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Nokta kaydedilirken bir veritabanı hatası oluştu.")
+    return {"message": "Nokta başarıyla kaydedildi."}
 
-@router.get("/get-points")
-def get_points(db: Session = Depends(get_db)):
-    points = db.query(models.UserPoint).all()
+@router.get("/get-points", response_model=list[schemas.PointOut])
+def get_points(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    points = db.query(models.UserPoint).filter(models.UserPoint.user_id == current_user.id).all()
     result = []
     
     for p in points:
@@ -104,9 +110,9 @@ def get_points(db: Session = Depends(get_db)):
         })
     return result
 
-@router.get("/get-polygons")
-def get_polygons(db: Session = Depends(get_db)):
-    polygons = db.query(models.UserPolygon).all()
+@router.get("/get-polygons", response_model=list[schemas.PolygonOut])
+def get_polygons(db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+    polygons = db.query(models.UserPolygon).filter(models.UserPolygon.user_id == current_user.id).all()
     results = []
     for p in polygons:
         # PostGIS geometrisini Python objesine (Shapely) çevir
@@ -118,75 +124,126 @@ def get_polygons(db: Session = Depends(get_db)):
         })
     return results
 
-@router.delete("/delete-point/{point_id}")
-def delete_point(point_id: int, db: Session = Depends(get_db)):
+@router.delete("/delete-point/{point_id}", response_model=schemas.Message)
+def delete_point(point_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
     db_point = db.query(models.UserPoint).filter(models.UserPoint.id == point_id).first()
     if not db_point:
         raise HTTPException(status_code=404, detail="Nokta bulunamadı")
-    db.delete(db_point)
-    db.commit()
+    
+    if db_point.user_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Bu işlemi yapmaya yetkiniz yok.")
+    try:
+        db.delete(db_point)
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Nokta silinirken bir veritabanı hatası oluştu.")
     return {"message": "Nokta başarıyla silindi"}
 
-@router.post("/upload-geojson")
+@router.post("/upload-geojson", response_model=schemas.Message)
 async def upload_geojson(
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
-    # current_user satırını sildik, artık kapı herkese açık
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(get_current_user)
 ):
     # Dosyayı oku
     contents = await file.read()
-    data = json.loads(contents)
+    try:
+        data = json.loads(contents)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Geçersiz GeoJSON formatı.")
     
     counts = {"points": 0, "polygons": 0}
-    for feature in data.get("features", []):
-        geom = feature.get("geometry")
-        if not geom:
-            continue
-        
-        geom_type = geom.get("type")
-        props = feature.get("properties", {})
+    try:
+        for feature in data.get("features", []):
+            geom = feature.get("geometry")
+            if not geom:
+                continue
+            
+            geom_type = geom.get("type")
+            props = feature.get("properties", {})
 
-        if geom_type == "Point":
-            lng, lat = geom.get("coordinates")
-            wkt_point = f"POINT({lng} {lat})"
+            if geom_type == "Point":
+                coordinates = geom.get("coordinates")
+                if not (isinstance(coordinates, list) and len(coordinates) == 2):
+                    continue # Geçersiz koordinat formatını atla
+                lng, lat = coordinates
+                wkt_point = f"POINT({lng} {lat})"
+                
+                new_point = models.UserPoint(
+                    name=props.get("name", "İçe Aktarılan Nokta"),
+                    location=WKTElement(wkt_point, srid=4326),
+                    user_id=current_user.id
+                )
+                db.add(new_point)
+                counts["points"] += 1
             
-            new_point = models.UserPoint(
-                name=props.get("name", "İçe Aktarılan Nokta"),
-                location=WKTElement(wkt_point, srid=4326),
-                user_id=1 # Şimdilik senin ID'ni (1) sabitliyoruz
-            )
-            db.add(new_point)
-            counts["points"] += 1
-        
-        elif geom_type == "Polygon":
-            geom_obj = shape(geom) # GeoJSON'ı Shapely objesine çevirir
-            new_poly = models.UserPolygon(
-                name=props.get("name", "Yeni Alan"),
-                geometry=WKTElement(geom_obj.wkt, srid=4326),
-                user_id=1
-            )
-            db.add(new_poly) # Hata düzeltildi: new_point yerine new_poly
-            counts["polygons"] += 1
-            
-    db.commit()
+            elif geom_type == "Polygon":
+                geom_obj = shape(geom) # GeoJSON'ı Shapely objesine çevirir
+                new_poly = models.UserPolygon(
+                    name=props.get("name", "Yeni Alan"),
+                    geometry=WKTElement(geom_obj.wkt, srid=4326),
+                    user_id=current_user.id
+                )
+                db.add(new_poly)
+                counts["polygons"] += 1
+                
+        db.commit()
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Veritabanı hatası: {e}")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"GeoJSON verisi işlenirken beklenmedik bir hata oluştu: {e}")
+    
     return {"message": f"{counts['points']} nokta ve {counts['polygons']} alan yüklendi!"}
+
+@router.get("/assignments", response_model=list[schemas.AssignmentForStudent])
+def get_all_assignments(db: Session = Depends(get_db)):
+    """
+    Tüm görevleri öğrenci paneli için listeler.
+    İleride bu, öğrencinin sınıfına veya öğretmenine göre filtrelenebilir.
+    """
+    assignments = db.query(models.Assignment).order_by(models.Assignment.id).all()
+    
+    results = []
+    for assign in assignments:
+        # Geometriyi GeoJSON formatına çeviren yardımcı fonksiyon
+        def geom_to_json(geom):
+            return mapping(to_shape(geom)) if geom else None
+
+        results.append({
+            "id": assign.id,
+            "title": assign.title,
+            "assignment_type": assign.assignment_type,
+            "start_info": assign.start_info,
+            "end_info": assign.end_info,
+            "status": assign.status,
+            "geom_start": geom_to_json(assign.geom_start),
+            "geom_end": geom_to_json(assign.geom_end),
+            "geom_path": geom_to_json(assign.geom_path),
+        })
+        
+    return results
 
 @router.post("/save_task", status_code=status.HTTP_201_CREATED)
 def save_task(
     assignment_in: schemas.AssignmentCreate,
-    db: Session = Depends(get_db),
-    # current_user: models.User = Depends(get_current_user) # Geliştirme tamamlandığında bu satır açılmalı
+    db: Session = Depends(get_db)
+    # current_user: models.User = Depends(get_current_user)  <-- Burayı geçici olarak kapattık
 ):
     try:
-        # 1. Öğretmen kontrolü (Sorguyu try içine aldık)
-        teacher = db.query(models.User).filter(models.User.role == "teacher_pro").first()
+        # 1. Veritabanındaki ilk mevcut öğretmeni otomatik bul (Auth gerektirmez)
+        teacher = db.query(models.User).filter(models.User.role == models.UserRole.TEACHER_PRO).first()
+        
         if not teacher:
+            # Eğer hiç kullanıcı yoksa hata dönelim ki bilelim
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Görev kaydı için önce bir öğretmen hesabı oluşturulmalı."
+                status_code=400, 
+                detail="Hocam veritabanında hiç öğretmen yok. Önce Swagger'dan bir Register yapmalısın."
             )
 
-        # 2. Temel veriyi hazırla
+        # 2. Geometriyi hazırla (Senin yazdığın mantıkla devam)
         start_wkt = f"POINT({assignment_in.start.latlng.lng} {assignment_in.start.latlng.lat})"
         new_assignment = models.Assignment(
             title=assignment_in.title,
@@ -194,16 +251,15 @@ def save_task(
             start_info=assignment_in.start.info,
             status=assignment_in.status,
             geom_start=WKTElement(start_wkt, srid=4326),
-            teacher_id=teacher.id
+            teacher_id=teacher.id # Bulduğumuz öğretmene bağladık
         )
 
-        # 3. EĞER bitiş noktası varsa ekle
+        # 3. Diğer Geometriler (Çizgi/Alan)
         if assignment_in.end and assignment_in.end.latlng:
             end_wkt = f"POINT({assignment_in.end.latlng.lng} {assignment_in.end.latlng.lat})"
             new_assignment.geom_end = WKTElement(end_wkt, srid=4326)
             new_assignment.end_info = assignment_in.end.info
 
-        # 4. Geometri Motoru (Çizgi/Alan görevleri için)
         if assignment_in.assignment_type == "LINESTRING" and assignment_in.path and len(assignment_in.path) >= 2:
             coords = ", ".join([f"{p.lng} {p.lat}" for p in assignment_in.path])
             new_assignment.geom_path = WKTElement(f"LINESTRING({coords})", srid=4326)
@@ -211,13 +267,12 @@ def save_task(
         elif assignment_in.assignment_type == "POLYGON" and assignment_in.path and len(assignment_in.path) >= 3:
             p_list = assignment_in.path
             coords = ", ".join([f"{p.lng} {p.lat}" for p in p_list])
-            coords += f", {p_list[0].lng} {p_list[0].lat}" # Kapatma
+            coords += f", {p_list[0].lng} {p_list[0].lat}" # Poligonu kapat
             new_assignment.geom_path = WKTElement(f"POLYGON(({coords}))", srid=4326)
 
         db.add(new_assignment)
         db.commit()
-        db.refresh(new_assignment)
-        return {"status": "success", "message": "Görev mühürlendi!", "id": new_assignment.id}
+        return {"status": "success", "message": "Görev mühürlendi!"}
         
     except SQLAlchemyError as e:
         db.rollback()
